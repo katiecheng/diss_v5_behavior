@@ -380,6 +380,9 @@ df_users = df_users[[
   "directionOfChange_num",
   "changeRelativeToOutcome",
   "changeRelativeToOutcome_num",
+  "assessmentBehaviorREG",
+  "changeRelativeToOutcomeBehavior",
+  "changeRelativeToOutcomeBehavior_num",
   "effort",
   "effort_num",
   "comments"
