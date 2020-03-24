@@ -45,6 +45,11 @@ df_behavior_change_vars = pd.read_csv(
   'variable_calcs_behav_toImport.csv'
 )
 
+### Read first item behavior variables
+df_behavior_firstItem_vars = pd.read_csv(
+  'variable_calcs_behav_firstItem_toImport.csv'
+)
+
 ### WRANGLE #######################################################################################
 ### Drop items with NaN in itemIndex
 df_items = df_items.dropna(subset=['itemIndex'])
@@ -168,6 +173,16 @@ for n in range(1,3):
 ### Calculate new item-level variables TODO
 
 
+### CREATE USER-LEVEL VARS FROM ITEM-LEVEL ###########################################################
+is_firstItem = df_items['assessmentStrategyOrder']==1
+df_firstItemStrategy = df_items[is_firstItem]
+# remove itemIndex as index
+df_firstItemStrategy = df_firstItemStrategy.reset_index(level=[1])[['assessmentStrategy']]
+df_firstItemStrategy = df_firstItemStrategy.rename(columns={"assessmentStrategy": "firstItemStrategy"})
+df_users = pd.merge(df_users, df_firstItemStrategy, how='left', on='prolificId')
+
+# START HERE IT'S NOT MERGING
+
 
 ### CREATE USER-LEVEL VARS FOR ANALYSES ###########################################################
 # numeric, difference from expecations: difference actual-predict for restudy and generate separately
@@ -254,6 +269,9 @@ df_users = df_users.reset_index().merge(df_belief_change_vars, how="left").set_i
 
 # use manually calculated behaviors
 df_users = df_users.reset_index().merge(df_behavior_change_vars, how="left").set_index('prolificId')
+
+# use manually calculated behaviors firstItem
+df_users = df_users.reset_index().merge(df_behavior_firstItem_vars, how="left").set_index('prolificId')
 
 
 """
@@ -386,6 +404,12 @@ df_users = df_users[[
   "directionOfChangeBehavior_num",
   "changeRelativeToOutcomeBehavior",
   "changeRelativeToOutcomeBehavior_num",
+  "firstItemStrategy",
+  "outcomeMatchPredictionBehaviorFirstItem",
+  "directionOfChangeBehaviorFirstItem",
+  "directionOfChangeBehaviorFirstItem_num",
+  "changeRelativeToOutcomeBehaviorFirstItem",
+  "changeRelativeToOutcomeBehaviorFirstItem_num",
   "effort",
   "effort_num",
   "comments"
