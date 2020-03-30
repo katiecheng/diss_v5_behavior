@@ -300,7 +300,9 @@ for n in range(1, 21):
     "directionOfChangeBehavior_%d" %(n-1): "directionOfChangeBehavior_%d" %(n),
     "directionOfChangeBehavior_%d_num" %(n-1): "directionOfChangeBehavior_%d_num" %(n),
     "changeRelativeToOutcomeBehavior_%d" %(n-1): "changeRelativeToOutcomeBehavior_%d" %(n),
-    "changeRelativeToOutcomeBehavior_%d_num" %(n-1): "changeRelativeToOutcomeBehavior_%d_num" %(n)
+    "changeRelativeToOutcomeBehavior_%d_num" %(n-1): "changeRelativeToOutcomeBehavior_%d_num" %(n),
+    "behaviorAlignedWithOutcome_%d" %(n-1): "behaviorAlignedWithOutcome_%d" %(n),
+    "behaviorAlignedWithOutcome_%d_num" %(n-1): "behaviorAlignedWithOutcome_%d_num" %(n)
     })
   df_users = df_users.reset_index().merge(df_behavior_byItem_vars, how="left").set_index('prolificId')
 
@@ -366,6 +368,13 @@ df_users['directionOfChange_num'] = df_users.apply(
 df_users['diff_interventionRestudyScoreToPrediction'] = df_users['interventionTestRestudyScore'] - df_users['interventionPredictRestudy']
 df_users['diff_interventionGenerateScoreToPrediction'] = df_users['interventionTestGenerateScore'] - df_users['interventionPredictGenerate']
 
+
+### item outcome names
+itemConsistencyNames = []
+itemAlignmentNames = []
+for n in range(1, 21):
+  itemConsistencyNames.append("changeRelativeToOutcomeBehavior_%d_num" %n)
+  itemAlignmentNames.append("behaviorAlignedWithOutcome_%d_num" %n)
 
 ### sort on column names
 df_users = df_users[[
@@ -440,30 +449,10 @@ df_users = df_users[[
   "directionOfChangeBehavior_1",
   "directionOfChangeBehavior_1_num",
   "changeRelativeToOutcomeBehavior_1",
-  "changeRelativeToOutcomeBehavior_1_num",
-  "changeRelativeToOutcomeBehavior_2_num",
-  "changeRelativeToOutcomeBehavior_3_num",
-  "changeRelativeToOutcomeBehavior_4_num",
-  "changeRelativeToOutcomeBehavior_5_num",
-  "changeRelativeToOutcomeBehavior_6_num",
-  "changeRelativeToOutcomeBehavior_7_num",
-  "changeRelativeToOutcomeBehavior_8_num",
-  "changeRelativeToOutcomeBehavior_9_num",
-  "changeRelativeToOutcomeBehavior_10_num",
-  "changeRelativeToOutcomeBehavior_11_num",
-  "changeRelativeToOutcomeBehavior_12_num",
-  "changeRelativeToOutcomeBehavior_13_num",
-  "changeRelativeToOutcomeBehavior_14_num",
-  "changeRelativeToOutcomeBehavior_15_num",
-  "changeRelativeToOutcomeBehavior_16_num",
-  "changeRelativeToOutcomeBehavior_17_num",
-  "changeRelativeToOutcomeBehavior_18_num",
-  "changeRelativeToOutcomeBehavior_19_num",
-  "changeRelativeToOutcomeBehavior_20_num",
   "effort",
   "effort_num",
   "comments"
-]]
+] + itemConsistencyNames + itemAlignmentNames]
 
 df_items = df_items[[
   "itemSwahili",
