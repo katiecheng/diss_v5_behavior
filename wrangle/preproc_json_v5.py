@@ -46,8 +46,13 @@ df_behavior_change_vars = pd.read_csv(
 )
 
 ### Read first item behavior variables
-df_behavior_firstItem_vars = pd.read_csv(
-  'variable_calcs_behav_firstItem_toImport.csv'
+# df_behavior_firstItem_vars = pd.read_csv(
+#   'variable_calcs_behav_firstItem_toImport.csv'
+# )
+
+### Read by item behavior variables
+df_behavior_byItem_vars = pd.read_csv(
+  'variable_calcs_behav_byItem_toImport.csv'
 )
 
 ### WRANGLE #######################################################################################
@@ -174,14 +179,26 @@ for n in range(1,3):
 
 
 ### CREATE USER-LEVEL VARS FROM ITEM-LEVEL ###########################################################
+
+# create a T/F vector
 is_firstItem = df_items['assessmentStrategyOrder']==1
+# subset to rows that are T
 df_firstItemStrategy = df_items[is_firstItem]
 # remove itemIndex as index
 df_firstItemStrategy = df_firstItemStrategy.reset_index(level=[1])[['assessmentStrategy']]
+# rename strat
 df_firstItemStrategy = df_firstItemStrategy.rename(columns={"assessmentStrategy": "firstItemStrategy"})
+# merge into users df
 df_users = pd.merge(df_users, df_firstItemStrategy, how='left', on='prolificId')
 
-# START HERE IT'S NOT MERGING
+### Repeat this for all 20 assessment items, to get strategy for each
+### need this info to calculate consistency
+for n in range(1, 21):
+  is_nth_item = df_items['assessmentStrategyOrder']==n
+  df_nth_item_strategy = df_items[is_nth_item]
+  df_nth_item_strategy = df_nth_item_strategy.reset_index(level=[1])[['assessmentStrategy']]
+  df_nth_item_strategy = df_nth_item_strategy.rename(columns={"assessmentStrategy": "itemStrategy_%d" %(n)})
+  df_users = pd.merge(df_users, df_nth_item_strategy, how='left', on='prolificId')
 
 
 ### CREATE USER-LEVEL VARS FOR ANALYSES ###########################################################
@@ -271,7 +288,21 @@ df_users = df_users.reset_index().merge(df_belief_change_vars, how="left").set_i
 df_users = df_users.reset_index().merge(df_behavior_change_vars, how="left").set_index('prolificId')
 
 # use manually calculated behaviors firstItem
-df_users = df_users.reset_index().merge(df_behavior_firstItem_vars, how="left").set_index('prolificId')
+# df_users = df_users.reset_index().merge(df_behavior_firstItem_vars, how="left").set_index('prolificId')
+
+
+### Repeat this for all 20 assessment items, to get strategy for each
+### need this info to calculate consistency
+for n in range(1, 21):
+  df_behavior_byItem_vars = df_behavior_byItem_vars.rename(columns={
+    "itemStrategy_%d" %(n-1): "itemStrategy_%d" %(n),
+    "outcomeMatchPredictionBehavior_%d" %(n-1): "outcomeMatchPredictionBehavior_%d" %(n),
+    "directionOfChangeBehavior_%d" %(n-1): "directionOfChangeBehavior_%d" %(n),
+    "directionOfChangeBehavior_%d_num" %(n-1): "directionOfChangeBehavior_%d_num" %(n),
+    "changeRelativeToOutcomeBehavior_%d" %(n-1): "changeRelativeToOutcomeBehavior_%d" %(n),
+    "changeRelativeToOutcomeBehavior_%d_num" %(n-1): "changeRelativeToOutcomeBehavior_%d_num" %(n)
+    })
+  df_users = df_users.reset_index().merge(df_behavior_byItem_vars, how="left").set_index('prolificId')
 
 
 """
@@ -404,12 +435,31 @@ df_users = df_users[[
   "directionOfChangeBehavior_num",
   "changeRelativeToOutcomeBehavior",
   "changeRelativeToOutcomeBehavior_num",
-  "firstItemStrategy",
-  "outcomeMatchPredictionBehaviorFirstItem",
-  "directionOfChangeBehaviorFirstItem",
-  "directionOfChangeBehaviorFirstItem_num",
-  "changeRelativeToOutcomeBehaviorFirstItem",
-  "changeRelativeToOutcomeBehaviorFirstItem_num",
+  "itemStrategy_1",
+  "outcomeMatchPredictionBehavior_1",
+  "directionOfChangeBehavior_1",
+  "directionOfChangeBehavior_1_num",
+  "changeRelativeToOutcomeBehavior_1",
+  "changeRelativeToOutcomeBehavior_1_num",
+  "changeRelativeToOutcomeBehavior_2_num",
+  "changeRelativeToOutcomeBehavior_3_num",
+  "changeRelativeToOutcomeBehavior_4_num",
+  "changeRelativeToOutcomeBehavior_5_num",
+  "changeRelativeToOutcomeBehavior_6_num",
+  "changeRelativeToOutcomeBehavior_7_num",
+  "changeRelativeToOutcomeBehavior_8_num",
+  "changeRelativeToOutcomeBehavior_9_num",
+  "changeRelativeToOutcomeBehavior_10_num",
+  "changeRelativeToOutcomeBehavior_11_num",
+  "changeRelativeToOutcomeBehavior_12_num",
+  "changeRelativeToOutcomeBehavior_13_num",
+  "changeRelativeToOutcomeBehavior_14_num",
+  "changeRelativeToOutcomeBehavior_15_num",
+  "changeRelativeToOutcomeBehavior_16_num",
+  "changeRelativeToOutcomeBehavior_17_num",
+  "changeRelativeToOutcomeBehavior_18_num",
+  "changeRelativeToOutcomeBehavior_19_num",
+  "changeRelativeToOutcomeBehavior_20_num",
   "effort",
   "effort_num",
   "comments"
