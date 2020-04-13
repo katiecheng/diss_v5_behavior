@@ -1,0 +1,303 @@
+---
+title: "diss_v5_exploring_behavior_sequence"
+author: "Katie Cheng"
+date: "3/24/2020"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lme4)
+library(lmerTest) # p-values on lmer
+source("summarySE.R")
+library(corrplot)
+library(plyr) # for ddply, calculating means for histograms
+library(apaTables) # for apa.cor.table
+#library(ggpubr) # for balloon plot
+library("ggalluvial") # for alluvial plot
+library(cluster) # clustering algs
+library(factoextra) # clustering algs & viz
+# differences in avgs btw groups
+# hierarchical: differences btw groups, controlling for participant
+```
+
+```{r import & wrangle}
+
+source("diss_v5_import.R")
+source("diss_v5_wrangle.R")
+```
+
+```{r sequences of strategies chosen during assessmentStrategy}
+
+# spread assessmentStrategy by item order
+temp <- filter(df_v5n48, !is.na(assessmentStrategyOrder))[c("prolificId", "assessmentStrategyOrder", "assessmentStrategy_num")]
+df_assessmentStrats <- tidyr::spread(temp, assessmentStrategyOrder, assessmentStrategy_num)
+
+# rename columns
+colnames(df_assessmentStrats) <- paste("assessStratOrder", colnames(df_assessmentStrats), "strategy_num", sep="_")
+df_assessmentStrats$prolificId <- df_assessmentStrats$assessStratOrder_prolificId_strategy_num
+
+# merge behavior seq with users dataset
+df_v5n48_users <- left_join(df_v5n48_users, df_assessmentStrats, by="prolificId")
+
+```
+
+```{r logistic regression of behavioral choices on consistency}
+
+# logistic regression
+# classification in one of two categories
+# maximum likelihood estimator; choose most likely value of parameter
+# the values of beta that give the highest likelihood of seeing the data you see
+# b0 is the horizontal position
+# b1 is the steepness of the slope
+# dummy variables for qualitative inputs
+# 0 if restudy
+# 1 if generate
+
+# does a certain sequence of events predict outcomes?
+
+summary(lm(changeRelativeToOutcomeBehavior_num ~ assessStratOrder_1_strategy_num+assessStratOrder_2_strategy_num+assessStratOrder_3_strategy_num+assessStratOrder_4_strategy_num+assessStratOrder_5_strategy_num+assessStratOrder_6_strategy_num+assessStratOrder_7_strategy_num+assessStratOrder_8_strategy_num+assessStratOrder_9_strategy_num+assessStratOrder_10_strategy_num+assessStratOrder_11_strategy_num+assessStratOrder_12_strategy_num+assessStratOrder_13_strategy_num+assessStratOrder_14_strategy_num+assessStratOrder_15_strategy_num+assessStratOrder_16_strategy_num+assessStratOrder_17_strategy_num+assessStratOrder_18_strategy_num+assessStratOrder_19_strategy_num+assessStratOrder_20_strategy_num, df_v5n48_users))
+
+summary(lm(changeRelativeToOutcome_num ~ assessStratOrder_1_strategy_num+assessStratOrder_2_strategy_num+assessStratOrder_3_strategy_num+assessStratOrder_4_strategy_num+assessStratOrder_5_strategy_num+assessStratOrder_6_strategy_num+assessStratOrder_7_strategy_num+assessStratOrder_8_strategy_num+assessStratOrder_9_strategy_num+assessStratOrder_10_strategy_num+assessStratOrder_11_strategy_num+assessStratOrder_12_strategy_num+assessStratOrder_13_strategy_num+assessStratOrder_14_strategy_num+assessStratOrder_15_strategy_num+assessStratOrder_16_strategy_num+assessStratOrder_17_strategy_num+assessStratOrder_18_strategy_num+assessStratOrder_19_strategy_num+assessStratOrder_20_strategy_num, df_v5n48_users))
+
+```
+
+```{r visualize choices over time}
+
+paste("assessStratOrder", c(1:20), "strategy_num", sep="_")
+paste("assessStratOrder", c(1:20), "strategy_num", sep="_")
+
+ggplot(df_v5n48, aes(x=assessmentStrategyOrder, y=prolificId, fill=assessmentStrategy)) + geom_tile() +facet_wrap(vars(condition), ncol=1)
+
+
+ggplot(df_v5n48, aes(x=assessmentStrategyOrder, y=prolificId, fill=assessmentStrategy)) + geom_tile() +facet_wrap(vars(condition, interventionOutcome))
+
+
+```
+
+```{r consistency over time by condition}
+
+# for every item, consistency
+
+# item colnames
+itemConsistencies <- c()
+for (n in c(1:20)) {
+  itemConsistencies[n] <- paste("changeRelativeToOutcomeBehavior_",n,"_num", sep="")
+}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", itemConsistencies, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+```
+
+```{r consistency over time by condition/outcome}
+
+# for every item, consistency
+# in python...merge 20 files...?
+
+# item colnames
+itemConsistencies <- c()
+for (n in c(1:20)) {
+  itemConsistencies[n] <- paste("changeRelativeToOutcomeBehavior_",n,"_num", sep="")
+}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", itemConsistencies, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "interventionOutcome", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    facet_wrap(vars(interventionOutcome), nrow=3) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+```
+
+
+
+```{r alignment over time by condition}
+
+# item colnames
+itemAlignments <- c()
+for (n in c(1:20)) {
+  itemAlignments[n] <- paste("behaviorAlignedWithOutcome_",n,"_num", sep="")
+}
+
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", itemAlignments, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+```
+
+```{r alignment over time by condition/outcome}
+
+# item colnames
+itemAlignments <- c()
+for (n in c(1:20)) {
+  itemAlignments[n] <- paste("behaviorAlignedWithOutcome_",n,"_num", sep="")
+}
+
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", itemAlignments, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "interventionOutcome", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    facet_wrap(vars(interventionOutcome), nrow=3) + 
+    scale_x_discrete(labels=c(c(1:20)))
+```
+
+```{r investigating the sequences of strange outcomes}
+
+filter(df_v5n48_users, condition=="expt" & interventionPrediction=="generate" & interventionOutcome=="generate" & assessmentBelief=="restudy")[itemAlignments]
+filter(df_v5n48_users, condition=="expt" & interventionPrediction=="generate" & interventionOutcome=="generate" & assessmentBelief=="restudy")
+
+```
+
+# clustering sequence
+
+```{r}
+# source: https://uc-r.github.io/kmeans_clustering
+
+# item colnames
+itemAlignments <- c()
+for (n in c(1:20)) {
+  itemAlignments[n] <- paste("behaviorAlignedWithOutcome_",n,"_num", sep="")
+}
+
+set.seed(123)
+fviz_nbclust(df_v5n48_users[itemAlignments], kmeans, method = "wss") # 2 clusters
+fviz_nbclust(df_v5n48_users[itemAlignments], kmeans, method = "silhouette") # 2 clusters
+final <- kmeans(df_v5n48_users[itemAlignments], 2, nstart = 25)
+fviz_cluster(final, data = df_v5n48_users[itemAlignments])
+
+df_v5n48_users[itemAlignments] %>%
+  mutate(cluster = final$cluster) %>%
+  group_by(cluster) %>%
+  summarise_all("mean")
+
+# add cluster to data
+df_v5n48_users <- df_v5n48_users %>% mutate(cluster = final$cluster)
+
+# cluster means across conditions
+melt <- df_v5n48_users %>% tidyr::gather(key="measures", value="mean", itemAlignments, factor_key = TRUE)
+means <- summarySE(melt, measurevar="mean", groupvars=c("cluster", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+means %>% ggplot(aes(measures, mean, fill=as.factor(cluster), color=as.factor(cluster))) + 
+    geom_point(position=position_identity()) + geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2) 
+
+# cluster means with condition
+melt <- df_v5n48_users %>% tidyr::gather(key="measures", value="mean", itemAlignments, factor_key = TRUE)
+means <- summarySE(melt, measurevar="mean", groupvars=c("cluster", "condition", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+means %>% ggplot(aes(measures, mean, fill=as.factor(cluster), color=as.factor(cluster))) + 
+    geom_point(position=position_identity()) + geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2) + facet_wrap(vars(condition))
+
+# how many are in each cluster in each condition?
+table(df_v5n48_users$condition, df_v5n48_users$cluster) 
+# control has 12 1s (aligned) and 13 2s (misaligned)
+# expt has 8 1s (aligned) and 13 2s (misaligned)
+
+# comparing this to the strict alignment criteria REG
+table(df_v5n48_users$condition, df_v5n48_users$finalBehaviorMatchOutcome) 
+# control has 11 aligned, 14 misaligned
+# expt has 6 aligned and 15 misaligned
+# so the clustering is more generous, more things fall in the "aligned" category
+
+# visualizing individuals' alignment in each cluster
+melt <- df_v5n48_users %>% tidyr::gather(key="measures", value="mean", itemAlignments, factor_key = TRUE)
+melt %>% ggplot(aes(measures, mean, fill=prolificId, color=prolificId)) + 
+  geom_line(aes(group=prolificId), position=position_jitter(width = 0.25, seed = 123)) + 
+    theme(legend.position = "none") + facet_wrap(vars(cluster))
+
+# visualizing individuals' alignment in each cluster, by condition
+melt <- df_v5n48_users %>% tidyr::gather(key="measures", value="mean", itemAlignments, factor_key = TRUE)
+melt %>% ggplot(aes(measures, mean, fill=prolificId, color=prolificId)) + 
+  geom_line(aes(group=prolificId), position=position_jitter(width = 0.25, height=.1, seed = 123)) + 
+    theme(legend.position = "none") + facet_wrap(vars(cluster, condition))+ 
+    scale_x_discrete(labels=c(c(1:20)))
+
+# visualizing individuals' alignment in each cluster, by condition
+melt <- df_v5n48_users %>% tidyr::gather(key="measures", value="mean", itemAlignments, factor_key = TRUE)
+melt %>% ggplot(aes(measures, as.factor(mean), fill=as.factor(cluster), color=as.factor(cluster))) + 
+  geom_line(aes(group=cluster)) + 
+    theme(legend.position = "none") + facet_wrap(vars(prolificId)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+# visualizing individuals' alignment in each cluster, by condition
+melt <- df_v5n48_users %>% tidyr::gather(key="measures", value="mean", itemAlignments, factor_key = TRUE)
+melt %>% ggplot(aes(measures, as.factor(mean), fill=as.factor(cluster), color=as.factor(cluster))) + 
+  geom_line(aes(group=cluster)) + 
+    theme(legend.position = "none") + facet_wrap(vars(condition, interventionOutcome, finalMatchOutcome)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+# visualizing individuals' alignment in each cluster, by condition
+melt <- filter(df_v5n48_users, interventionOutcome!="equal") %>% tidyr::gather(key="measures", value="mean", itemAlignments, factor_key = TRUE)
+melt %>% ggplot(aes(measures, as.factor(mean), fill=prolificId, color=prolificId)) + 
+  geom_line(aes(group=prolificId), position=position_jitter(width = 0.25, height=.25, seed = 123)) + 
+  theme(legend.position = "none") + 
+  facet_wrap(vars(condition, interventionOutcome, finalMatchOutcome), ncol=4) + 
+  scale_x_discrete(labels=c(c(1:20)))
+
+# visualizing individuals' alignment in each cluster, by condition
+melt <- filter(df_v5n48_users, interventionOutcome!="equal") %>% tidyr::gather(key="measures", value="mean", itemAlignments, factor_key = TRUE)
+melt %>% ggplot(aes(measures, as.factor(mean), fill=prolificId, color=prolificId)) + 
+  geom_line(aes(group=prolificId), position=position_jitter(width = 0.25, height=.25, seed = 123)) + 
+  theme(legend.position = "none") + 
+  facet_wrap(vars(condition, interventionOutcome, finalMatchOutcome, prolificId), ncol=10) + 
+  scale_x_discrete(labels=c(c(1:20)))
+
+```
+```{r visualize cluster by final belief}
+
+# visualizing individuals' alignment in each cluster, by condition
+melt <- df_v5n48_users %>% tidyr::gather(key="measures", value="mean", itemAlignments, factor_key = TRUE)
+melt %>% ggplot(aes(measures, as.factor(mean), fill=as.factor(cluster), color=as.factor(cluster))) + 
+  geom_line(aes(group=cluster)) + 
+    theme(legend.position = "none") + facet_wrap(vars(assessmentBelief)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+
+table(df_v5n48_users$cluster, df_v5n48_users$assessmentBelief) # a greater proportion of folks in who choose aligined behaviors (Cluster 1) end up believing generate. A greater proportion of folks who choose misaligned behaviors (Cluster 2) end up believing restudy. 
+
+table(df_v5n48_users$cluster, belief=df_v5n48_users$assessmentBelief, outcome=df_v5n48_users$interventionOutcome)
+# people's end beliefs tend to align with their behaviors, not with outcomes
+# people's end beliefs tend to align with their outcomes *if* their behaviors also align
+
+table(df_v5n48_users$cluster, belief=df_v5n48_users$assessmentBelief, outcome=df_v5n48_users$interventionOutcome, df_v5n48_users$condition)
+# not clear to me that condition did anything
+```
+
+
+```{r clusters related to outcomes?}
+
+summary(lm(finalBehaviorMatchOutcome ~ cluster, df_v5n48_users)) # 2.605e-15; obviously, they're very similar
+summary(lm(finalMatchOutcome ~ cluster, df_v5n48_users)) # 0.2744
+summary(lm(assessmentBelief_num ~ cluster, df_v5n48_users)) # 0.06014; trend that cluster predicts final belief
+
+summary(lm(finalMatchOutcome ~ finalBehaviorMatchOutcome, df_v5n48_users)) # 0.1772
+
+summary(lm(assessmentBelief_num ~ finalBehaviorMatchOutcome, df_v5n48_users)) # 0.004797
+
+```
+

@@ -147,16 +147,14 @@ function createNewUser(prolificId, startDateTime, condition) {
     interventionTestGenerateScore: "",
     interventionFeedbackSurprise: "",
     assessmentTestScore: "",
+    assessmentTestGenerateScore: "", 
+    assessmentTestRestudyScore: "",
 
     effectivenessRestudy : "",
     effortRestudy : "",
-    howManyRestudy : "",
     effectivenessGenerate : "",
     effortGenerate : "",
-    howManyGenerate : "",  
     chosenStrategy : "",
-    effectivenessChosenStrategy : "",
-    effortChosenStrategy : "",
     effort : "",
 
     comments : ""
@@ -200,25 +198,35 @@ function updateUserFeedbackSurprise(prolificId, feedbackSurprise){
   });
 }
 
-function updateUserAssessmentTestScore(prolificId, assessmentScore) {
+
+function updateUserAssessmentStrategyScores(prolificId, 
+  assessmentStrategyRestudyScore, assessmentStrategyGenerateScore,
+  assessmentStrategyChoiceRestudyCount, assessmentStrategyChoiceGenerateCount) {
   db.ref('users/' + prolificId).update({
-    assessmentTestScore : assessmentScore
+    assessmentStrategyRestudyScore: assessmentStrategyRestudyScore,
+    assessmentStrategyGenerateScore: assessmentStrategyGenerateScore,
+    assessmentStrategyChoiceRestudyCount: assessmentStrategyChoiceRestudyCount,
+    assessmentStrategyChoiceGenerateCount: assessmentStrategyChoiceGenerateCount
+
   });
 }
 
-function updateUserQuestionnaire(prolificId, effectivenessRestudy, effortRestudy, howManyRestudy, 
-        effectivenessGenerate, effortGenerate, howManyGenerate,
-        chosenStrategy, effectivenessChosenStrategy, effortChosenStrategy, effort){
+function updateUserAssessmentTestScore(prolificId, assessmentScore, assessmentTestGenerateScore, assessmentTestRestudyScore) {
+  db.ref('users/' + prolificId).update({
+    assessmentTestScore : assessmentScore,
+    assessmentTestGenerateScore : assessmentTestGenerateScore,
+    assessmentTestRestudyScore : assessmentTestRestudyScore
+  });
+}
+
+function updateUserQuestionnaire(prolificId, effectivenessRestudy, effortRestudy, 
+        effectivenessGenerate, effortGenerate, chosenStrategy,  effort){
   db.ref('users/' + prolificId).update({
     effectivenessRestudy : effectivenessRestudy,
     effortRestudy : effortRestudy,
-    howManyRestudy : howManyRestudy,
     effectivenessGenerate : effectivenessGenerate,
     effortGenerate : effortGenerate,
-    howManyGenerate : howManyGenerate,  
     chosenStrategy : chosenStrategy,
-    effectivenessChosenStrategy : effectivenessChosenStrategy,
-    effortChosenStrategy : effortChosenStrategy,
     effort : effort
   });
 }
@@ -261,9 +269,7 @@ function createNewItem(prolificId, itemIndex, swahili, english) {
     assessmentTestUserInput: "",
     assessmentTestAccuracy: "",
 
-    assessmentStrategy: "",
-    assessmentStrategyRevealLatency: "",
-    assessmentStrategyMoveOnLatency: "",
+    assessmentStrategy: ""
   });
 }
 
@@ -332,19 +338,14 @@ function updateItemTestAccuracyData(prolificId, itemIndex, testAccuracy, userInp
   }
 }
 
-function updateItemStrategyRevealData(prolificId, itemIndex, assessmentStrategy, revealLatency){
+function updateItemAssessmentStrategyData(prolificId, itemIndex, assessmentStrategy, userInput, accuracy){
   db.ref('items/' + prolificId + "_" + itemIndex).update({
     assessmentStrategy: assessmentStrategy,
-    assessmentStrategyRevealLatency: revealLatency
+    assessmentStrategyUserInput: userInput,
+    assessmentStrategyAccuracy: accuracy
   });
 }
 
-function updateItemStrategyMoveOnData(prolificId, itemIndex, assessmentStrategy, moveOnLatency){
-  db.ref('items/' + prolificId + "_" + itemIndex).update({
-    assessmentStrategy: assessmentStrategy,
-    assessmentStrategyMoveOnLatency: moveOnLatency
-  });
-}
 
 function getCondition(){
   var conditionsArray,
@@ -377,18 +378,9 @@ function getCondition(){
     // Show the instructions slide -- this is what we want subjects to see first.
     showSlide("getProlificId");
 
-    // test prediction slide
-    // experiment.interventionPredict(); 
-    // showSlide("predictNext");
-
-    // test feedback slides
-    // experiment.controlFeedback(); 
-    // experiment.interventionFeedback(); 
-    // showSlide("feedbackNext");
-
-    // test questionnaire slides
-    // experiment.questionnaire(); 
-    // showSlide("questionnaire");
+    // test choice slide
+    // showSlide("choiceRG");
+    // experiment.questionnaire();
   });
 }
 
@@ -401,7 +393,7 @@ var experiment = "",
   /* toggle numTrials for testing*/
   numTrials = 40, // full 40 items
   /* test intervention with first numTrials items, in case need to re-test people */
-  // numTrials = 10, // testing
+  // numTrials = 4, // testing
   trialDuration = 5000,
   feedbackDuration = 1000, 
   bgcolor = "white",
@@ -540,7 +532,13 @@ function runExpt(){
     interventionFeedbackSurprise: "",
     assessmentStudyOrderCounter: 0,
     assessmentStrategyOrderCounter: 0,
+    assessmentStrategyChoiceRestudyCount: 0,
+    assessmentStrategyChoiceGenerateCount: 0,
+    assessmentStrategyRestudyScore: 0,
+    assessmentStrategyGenerateScore: 0,
     assessmentTestOrderCounter: 0,
+    assessmentTestRestudyScore: 0,
+    assessmentTestGenerateScore: 0,
     assessmentTestScore: 0,
     // totalScore: 0,
     // bonusPayment: 0,
@@ -656,7 +654,6 @@ function runExpt(){
       }
       showSlide("textNext");
       $("#instructionsHeader").html(header);
-      // $("#instructionsText1").html(text1);
       $("#instructionsText1").html(text1replaced);
       $("#instructionsText2").html(text2);
       $("#nextButton").click(function(){$(this).blur(); experiment.interventionStrategy(round);});
@@ -1034,9 +1031,8 @@ function runExpt(){
       Now, you will learn the second set of 20 Swahili-English word pairs. \
       You will go through the same 3 phases: (1) Presentation phase, \
       (2) Learning phase, and (3) Quiz phase."
-      var text2 = "This time, the Learning phase is self-paced. For each Swahili word, \
-      you will be able to check the English translation and move on to the next word \
-      at the pace you choose.";
+      var text2 = "This time, the Learning phase is self-regulated. For each Swahili word, \
+      you will be able to choose which of the two study strategies to apply.";
       showSlide("textNext");
       $("#instructionsHeader").html(header);
       $("#instructionsText1").html(text1);
@@ -1087,169 +1083,161 @@ function runExpt(){
     },
 
     assessmentStrategyFraming: function() {
+      var reviewText = "If you click <b>Review</b>, you will study the next word pair by reviewing the English translation by copying it into a textbox";
+      var recallText = "If you click <b>Recall</b>, you will study the next word pair by recalling the English translation from memory";
+      if (experiment.predictRestudyFirst){
+        // predict restudy first, then predict generate
+        var firstStratText = reviewText;
+        var secondStratText = recallText;
+      } else {
+        // predict generate first, then predict restudy
+        var firstStratText = recallText;
+        var secondStratText = reviewText;
+      }
       var header = "Round 2: Learning phase";
       var text1 = "Next, you will study the 20 Swahili-English word pairs. \
-      For each pair, you will be shown the Swahili word. \
-      <ul>\
-      <li>You can click 'See Translation' to see the English Translation.\
-      <li>Then, you can click 'Move On' to move on to the next word pair.</li>\
-      </ul>\
-      If you don't click the buttons, each screen will automatically \
-      advance after 5 seconds."
+        For each pair, you will see a screen asking you to choose which of the \
+        two strategies you will use to study the next Swahili-English word pair. \
+        You must make a choice for the screen to advance. \
+        <ul>\
+        <li>firstStratText</li>\
+        <li>secondStratText</li>\
+        </ul>\
+        After 5 seconds, the screen will automatically advance and save your input. \
+        <br><br>\
+        For the cases that you try to <b>recall</b> the translation from memory, \
+        you will get to see the correct answer at the end of the 5 seconds. \
+        If you were correct, the answer will be shown in <b><font color='green'>green</font></b>, \
+        if incorrect, the answer will be shown in <b><font color='red'>red</font></b>.";
+      var text1replaced = text1.replace(
+          "firstStratText", firstStratText).replace(
+          "secondStratText", secondStratText);
       var text2 = "Please make sure you understand these instructions before you begin."
-      /*var text = "Next, you will study the 20 Swahili-English word pairs. \
-      For each pair, you will be shown the Swahili word. You can click 'See Translation' \
-      to see the English Translation. Then, you can click 'Move On' to move on to the \
-      next word pair. If you don't click the buttons, the screens will automatically \
-      advance after 5 seconds. \
-      <br><br> The 24 word pairs will be split into three sets of eight. You will be asked to use a \
-      different study strategy for each set."*/
       showSlide("textNext");
       $("#instructionsHeader").html(header);
-      $("#instructionsText1").html(text1);
+      $("#instructionsText1").html(text1replaced);
       $("#instructionsText2").html(text2);
       $("#nextButton").click(function(){$(this).blur(); 
-        experiment.assessmentStrategyLatencyReveal("assessmentChoice");});
+        // experiment.assessmentStrategyLatencyReveal("assessmentChoice");});
+        experiment.assessmentChoice();});
     },
 
-    /* capture latency data */
-    captureTime: function(exptPhase, strategy, currItem, swahili, english, startTime, endTime){
-      var latency = endTime - startTime;
-      if (strategy =="assessmentChoice") {
-        var strategyAbbrev = "C";
-      } else if (strategy == "assessmentRestudy") {
-        var strategyAbbrev = "R";   
-      } else if (strategy == "assessmentGenerate") {
-        var strategyAbbrev = "G";
+    /* capture strategy choice */
+    assessmentChoice: function() {
+      var trials = experiment.assessmentChoiceTrials;
+      if (trials.length == 0){
+        // TODO updateUserAssessmentStrategyScores
+        // how many restudy, how many generate, and scores for each
+        updateUserAssessmentStrategyScores(experiment.prolificId, 
+          experiment.assessmentStrategyRestudyScore, 
+          experiment.assessmentStrategyGenerateScore,
+          experiment.assessmentStrategyChoiceRestudyCount,
+          experiment.assessmentStrategyChoiceGenerateCount);
+        experiment.assessmentTestFraming();
+        return;
+      }
+      var currItem = parseInt(trials.shift())
+      if (experiment.predictRestudyFirst){
+        // predict restudy first, then predict generate
+        var firstButtonText = "Review";
+        var secondButtonText = "Recall";
+      } else {
+        // predict generate first, then predict restudy
+        var firstButtonText = "Recall";
+        var secondButtonText = "Review";
       }
 
-      if (exptPhase == "assessmentStrategyLatencyReveal"){
-        updateItemStrategyRevealData(experiment.prolificId, currItem, strategyAbbrev, latency);
-      } else if (exptPhase == "assessmentStrategyLatencyMoveOn"){
-        updateItemStrategyMoveOnData(experiment.prolificId, currItem, strategyAbbrev, latency);
-      }
+      showSlide("choiceRG");
+      $("#choiceButton1").html(firstButtonText);
+      $("#choiceButton2").html(secondButtonText);
+      $("#choiceButton1").unbind();
+      $("#choiceButton1").click(function(){$(this).blur(); 
+        experiment.assessmentStrategy(firstButtonText, currItem);});
+      $("#choiceButton2").unbind();
+      $("#choiceButton2").click(function(){$(this).blur(); 
+        experiment.assessmentStrategy(secondButtonText, currItem);});
     },
 
-    /* For Latency pilot */
-    /*Then, you will have 5 seconds to study each pair using whatever method you would like. */
-    // assessmentChoiceFraming: function() {
-    //   var header = "Set 1 of 3: Free Study";
-    //   var text = "Please study these 8 Swahili-English word pairs <b>using whatever \
-    //   study method you would like</b>.\
-    //   <br><br>Please make sure you understand these instructions before you begin."
-    //   showSlide("textNext");
-    //   $("#instructionsHeader").html(header);
-    //   $("#instructionsText").html(text);
-    //   $("#nextButton").click(function(){$(this).blur(); 
-    //     experiment.assessmentStrategyLatencyReveal("assessmentChoice");
-    //   });
-    // },
+    /*
+    get the list of trials
+    if we've reached the end of the list
+      update the summary scores
+      move on to the test instructions
+    (else)
+    grab the current item, and the swahili/english
 
-    // assessmentRestudyFraming: function() {
-    //   var header = "Set 2 of 3: Study by Review";
-    //   var text = "Please study these 8 Swahili-English word pairs by <b>quickly revealing the English Translation\
-    //   and reviewing it</b>.\
-    //   <br><br>Please make sure you understand these instructions before you begin."
-    //   showSlide("textNext");
-    //   $("#instructionsHeader").html(header);
-    //   $("#instructionsText").html(text);
-    //   $("#nextButton").click(function(){$(this).blur(); 
-    //     experiment.assessmentStrategyLatencyReveal("assessmentRestudy");
-    //   });
-    // },
-
-    // assessmentGenerateFraming: function() {
-    //   var header = "Set 3 of 3: Study by Recall";
-    //   var text = "Finally, please study these 8 Swahili-English word pairs by <b>trying to recall the \
-    //   English translation from memory before revealing it</b>.\
-    //   <br><br>Please make sure you understand these instructions before you begin."
-    //   showSlide("textNext");
-    //   $("#instructionsHeader").html(header);
-    //   $("#instructionsText").html(text);
-    //   $("#nextButton").click(function(){$(this).blur(); 
-    //     experiment.assessmentStrategyLatencyReveal("assessmentGenerate");
-    //   });
-    // },
-
-    assessmentStrategyLatencyReveal: function(stratType) {
-      if (stratType == "assessmentChoice") {
-        var trials = experiment.assessmentChoiceTrials;
-        /* toggle for latency pilot vs. assessment */
-        // if (trials.length == 0) {experiment.assessmentRestudyFraming(); return;} 
-        if (trials.length == 0) {experiment.assessmentTestFraming(); return;} 
-      } /* should never be triggered in intervention expt */
-        else if (stratType == "assessmentRestudy") {
-        var trials = experiment.assessmentRestudyTrials;
-        if (trials.length == 0) {experiment.assessmentGenerateFraming(); return;} 
-      } /* should never be triggered in intervention expt */
-      else if (stratType == "assessmentGenerate") {
-        var trials = experiment.assessmentGenerateTrials;
-        if (trials.length == 0) {experiment.assessmentTestFraming(); return;} 
-      }
-
-      var currItem = parseInt(trials.shift()),
-        swahili = swahili_english_pairs[currItem][0],
+    */
+    assessmentStrategy: function(selectedStrategy, currItem){
+      var swahili = swahili_english_pairs[currItem][0],
         english = swahili_english_pairs[currItem][1];
-
+      
       experiment.assessmentStrategyOrderCounter += 1;
-      //experiment.assessmentData.strategyOrder[currItem] = experiment.assessmentStrategyOrderCounter;
       updateItemStrategyOrderData(experiment.prolificId, currItem, experiment.assessmentStrategyOrderCounter, "assessment");
+      experiment.assessmentChoiceTrialsSave.push(currItem);
 
-      if (stratType == "assessmentChoice") {
-        experiment.assessmentChoiceTrialsSave.push(currItem);
-      } else if (stratType == "assessmentRestudy") {
-        experiment.assessmentRestudyTrialsSave.push(currItem);      
-      } else if (stratType == "assessmentGenerate") {
+      wait.innerHTML = "";
+      wait2.innerHTML = "";
+      wait3.innerHTML = "";
+      wait4.innerHTML = "";
+      if (selectedStrategy=="Recall"){
+        experiment.assessmentStrategyChoiceGenerateCount += 1; 
         experiment.assessmentGenerateTrialsSave.push(currItem);
-      }
-
-      // start, and get startTime for RT
-      showSlide("choiceSeeTranslation");
-      $("#swahiliCue").html(swahili + " : ");
-      $("#englishAnswer").css("color", bgcolor).html(Array(english.length+1).join("x"));
-      var startTime = (new Date()).getTime(),
-        endTime = startTime + trialDuration;
-
-      //auto advance
-      var myTimeout = setTimeout(function(){
-        $("#seeTranslation").click();
-      }, trialDuration); 
-
-      //on button click, get endTime
-      $("#seeTranslation").unbind();
-      $("#seeTranslation").click( 
-        function(){
-          endTime = (new Date()).getTime();
-          clearTimeout(myTimeout);
-          $(this).blur();
-          experiment.captureTime("assessmentStrategyLatencyReveal", stratType, currItem, swahili, english, startTime, endTime);
-          experiment.assessmentStrategyLatencyMoveOn(stratType, currItem, swahili, english)});
+        showSlide("generate");
+        $("#swahili").html(swahili + " : ");
+        $("#generatedWord").val('');
+        $("#generatedWord").focus();
+        setTimeout(function(){
+          $("#generatedForm").submit(experiment.captureAssessmentStrategyWord("generate", currItem, swahili, english));
+        }, trialDuration-feedbackDuration);
+      } else if (selectedStrategy=="Review"){
+        experiment.assessmentStrategyChoiceRestudyCount += 1; 
+        experiment.assessmentRestudyTrialsSave.push(currItem);
+        showSlide("restudy");
+        $("#restudyWordpair").html(swahili + " : " + english);
+        $("#restudySwahili").html(swahili + " : ");
+        $("#restudiedWord").val('');
+        $("#restudiedWord").focus();
+        setTimeout(function(){
+          $("#restudiedForm").submit(experiment.captureAssessmentStrategyWord("restudy", currItem, swahili, english));
+        }, trialDuration); 
+      } 
     },
 
-    assessmentStrategyLatencyMoveOn: function(stratType, currItem, swahili, english){
+  captureAssessmentStrategyWord: function(strategy, currItem, swahili, english) {
+    if (strategy == "generate"){
+      var userInput = processUserInput($("#generatedWord").val());
+    } else if (strategy == "restudy"){
+      var userInput = processUserInput($("#restudiedWord").val());
+    }
 
-      //capture the timeout in the next slide
-      showSlide("choiceNextWordPair");
-      $("#swahiliCue2").html(swahili + " : ");
-      $("#englishAnswer2").html(english);
-      var startTime = (new Date()).getTime(),
-        endTime = startTime + trialDuration;
+    // console.log(userInput)
+    
+    var accuracy = english == userInput ? 1 : 0;
 
-      //auto advance
-      var myTimeout = setTimeout(function(){
-        $("#nextWordPair").click();
-      }, trialDuration); 
+    if (strategy == "generate"){
+      experiment.assessmentStrategyGenerateScore += accuracy;
+      experiment.assessmentGenerateFeedback(swahili, english, accuracy);
+    } else if (strategy == "restudy"){
+      experiment.assessmentStrategyRestudyScore += accuracy;
+      experiment.assessmentChoice();
+    } 
+    updateItemAssessmentStrategyData(experiment.prolificId, currItem, strategy, userInput, accuracy);
+    return false; // stop form from being submitted
+  },
 
-      //on button click, get endTime
-      $("#nextWordPair").unbind();
-      $("#nextWordPair").click( 
-        function(){
-          endTime = (new Date()).getTime();
-          clearTimeout(myTimeout);
-          $(this).blur(); 
-          experiment.captureTime("assessmentStrategyLatencyMoveOn", stratType, currItem, swahili, english, startTime, endTime);
-          experiment.assessmentStrategyLatencyReveal(stratType)});
-    },
+  //show feedback
+  assessmentGenerateFeedback: function(swahili, english, accuracy) {
+    $("#feedback").show();
+    $("#feedback").html(swahili + " : " + english);
+    if (accuracy == 1){
+      $("#feedback").css("color", "green");
+    } else {
+      $("#feedback").css("color", "red");
+    }
+    setTimeout(function(){
+      $("#feedback").hide();
+      experiment.assessmentChoice();}, feedbackDuration); 
+  },
 
     /*
     “Now, you will be shown each Swahili word again. You’ll have 10 seconds to type the 
@@ -1271,7 +1259,8 @@ function runExpt(){
     assessmentTest: function(){
       var trials = experiment.assessmentTestTrials;
       if (trials.length == 0) {
-        updateUserAssessmentTestScore(experiment.prolificId, experiment.assessmentTestScore);
+        updateUserAssessmentTestScore(experiment.prolificId, experiment.assessmentTestScore,
+          experiment.assessmentTestGenerateScore, experiment.assessmentTestRestudyScore);
         experiment.questionnaire(); 
         return;
       } 
@@ -1308,7 +1297,11 @@ function runExpt(){
         accuracy = english == userInput ? 1 : 0;
 
       // console.log(userInput)
-
+      if (experiment.assessmentGenerateTrialsSave.includes(currItem)) {
+        experiment.assessmentTestGenerateScore += accuracy;
+      } else if (experiment.assessmentRestudyTrialsSave.includes(currItem)) {
+        experiment.assessmentTestRestudyScore += accuracy;
+      }
       experiment.assessmentTestScore += accuracy;
       experiment.assessmentTest();
       updateItemTestAccuracyData(experiment.prolificId, currItem, accuracy, userInput, "assessment");
@@ -1327,14 +1320,6 @@ function runExpt(){
       var restudyEffortText = `In general, how much effort does the <b>review</b> strategy require?`;
       var generateEffortText = `In general, how much effort does the <b>recall</b> strategy require?`;
 
-        //TODO DECIDE: `You could study using whatever strategy you chose`
-      var howManyText = `In the second round of learning, you could study the ${experiment.numTrials/2} Swahili-English 
-      word pairs using any strategy you chose.`
-      var restudyHowManyText = `For these ${experiment.numTrials/2} Swahili-English word pairs, how many times was <b>review</b> 
-      (i.e. attempting to review the English translation) part of your chosen study strategy?`;
-      var generateHowManyText = `For these ${experiment.numTrials/2} Swahili-English word pairs, how many times was <b>recall</b> 
-      (i.e. attempting to recall the English translation) part of your chosen study strategy?`;
-
 
       if (experiment.predictRestudyFirst){
         // predict restudy first, then predict generate
@@ -1343,11 +1328,9 @@ function runExpt(){
         var firstReminderText = restudyReminderText;
         var firstEffectiveText = restudyEffectiveText;
         var firstEffortText = restudyEffortText;
-        var firstHowManyText = restudyHowManyText;
         var secondReminderText = generateReminderText;
         var secondEffectiveText = generateEffectiveText;
         var secondEffortText = generateEffortText;
-        var secondHowManyText = generateHowManyText;
       } else {
         // predict generate first, then predict restudy
         // var firstQuestionText = generateQuestionText;
@@ -1355,24 +1338,18 @@ function runExpt(){
         var firstReminderText = generateReminderText;
         var firstEffectiveText = generateEffectiveText;
         var firstEffortText = generateEffortText;
-        var firstHowManyText = generateHowManyText;
         var secondReminderText = restudyReminderText;
         var secondEffectiveText = restudyEffectiveText;
         var secondEffortText = restudyEffortText;
-        var secondHowManyText = restudyHowManyText;
       }
 
       showSlide("questionnaire");
       $("#firstReminderText").html(firstReminderText);
       $("#firstEffectiveText").html(firstEffectiveText);
       $("#firstEffortText").html(firstEffortText);
-      $("#firstHowManyText").html(firstHowManyText);
       $("#secondReminderText").html(secondReminderText);
       $("#secondEffectiveText").html(secondEffectiveText);
       $("#secondEffortText").html(secondEffortText);
-      $("#secondHowManyText").html(secondHowManyText);
-      $("#howManyText").html(howManyText);
-      $(".howManyDenominator").html(`/${experiment.numTrials/2}`);
       $("#questionnaireNextButton").click(function(){$(this).blur(); 
         $("#questionnaireForm").submit(experiment.validateQuestionnaire());
       })
@@ -1381,25 +1358,13 @@ function runExpt(){
     validateQuestionnaire: function(){
       var fail = false,
         errorLog = "We noticed that you did not provide a valid response to some of our questions. Please check your response to the following questions:\n",
-        names = ['Q1a', 'Q1b', 'Q2a', 'Q2b', 'Q3a', 'Q3b', 'Q3c', 'Q4a', 'Q4b', 'Q5']
+        names = ['Q1a', 'Q1b', 'Q2a', 'Q2b', 'Q3', 'Q4']
       for (name of names){
-        if (name == 'Q3a'){ 
+        if (name == 'Q3'){ 
           // strategy textarea, trim whitespace
-          if (!$.trim($("#Q3a").val())){
+          if (!$.trim($("#Q3").val())){
             fail = true;
             errorLog += name + " ";
-          }
-        } else if (name == 'Q4a') {
-          var Q4a = parseInt($("#Q4a").val())
-          if (!(Q4a >= 0 & Q4a <= experiment.numTrials/2)){
-            errorLog += name + " ";
-            fail = true;
-          }
-        } else if (name == 'Q4b') {
-          var Q4b = parseInt($("#Q4b").val())
-          if (!(Q4b >= 0 & Q4b <= experiment.numTrials/2)){
-            errorLog += name + " ";
-            fail = true;
           }
         } else if (! $("input:radio[name=inputName]".replace("inputName", name)).is(":checked")) {
           // radio buttons
@@ -1424,25 +1389,18 @@ function runExpt(){
       if (experiment.predictRestudyFirst){
         var effectivenessRestudy = $("input:radio[name=Q1a]:checked").val(),
           effortRestudy = $("input:radio[name=Q1b]:checked").val(),
-          howManyRestudy = parseInt($("#Q4a").val()),
           effectivenessGenerate = $("input:radio[name=Q2a]:checked").val(),
-          effortGenerate = $("input:radio[name=Q2b]:checked").val(),
-          howManyGenerate = parseInt($("#Q4b").val());
+          effortGenerate = $("input:radio[name=Q2b]:checked").val();
       } else {
         var effectivenessRestudy = $("input:radio[name=Q2a]:checked").val(),
           effortRestudy = $("input:radio[name=Q2b]:checked").val(),
-          howManyRestudy = parseInt($("#Q4b").val()),
           effectivenessGenerate = $("input:radio[name=Q1a]:checked").val(),
-          effortGenerate = $("input:radio[name=Q1b]:checked").val(),
-          howManyGenerate = parseInt($("#Q4a").val());
+          effortGenerate = $("input:radio[name=Q1b]:checked").val();
       }
-      var chosenStrategy = $("#Q3a").val(),
-        effectivenessChosenStrategy = $("input:radio[name=Q3b]:checked").val(),
-        effortChosenStrategy = $("input:radio[name=Q3c]:checked").val(),
-        effort = $("input:radio[name=Q5]:checked").val();
-      updateUserQuestionnaire(experiment.prolificId, effectivenessRestudy, effortRestudy, howManyRestudy, 
-        effectivenessGenerate, effortGenerate, howManyGenerate,
-        chosenStrategy, effectivenessChosenStrategy, effortChosenStrategy, effort);
+      var chosenStrategy = $("#Q3").val(),
+        effort = $("input:radio[name=Q4]:checked").val();
+      updateUserQuestionnaire(experiment.prolificId, effectivenessRestudy, effortRestudy, 
+        effectivenessGenerate, effortGenerate, chosenStrategy, effort);
       experiment.end()
     },
 

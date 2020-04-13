@@ -1,0 +1,110 @@
+---
+title: "diss_v5_exploring_condition_differences"
+author: "Katie Cheng"
+date: "3/26/2020"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lme4)
+library(lmerTest) # p-values on lmer
+source("summarySE.R")
+library(corrplot)
+library(plyr) # for ddply, calculating means for histograms
+library(apaTables) # for apa.cor.table
+#library(ggpubr) # for balloon plot
+library("ggalluvial") # for alluvial plot
+
+# differences in avgs btw groups
+# hierarchical: differences btw groups, controlling for participant
+```
+
+```{r import & wrangle}
+
+source("diss_v5_import.R")
+source("diss_v5_wrangle.R")
+```
+
+```{r diff in demographics? yes expt older}
+
+# age
+ggplot(df_v5n48_users, aes(age, fill=condition)) + geom_bar(position=position_dodge()) 
+
+summary(lm(age ~ condition, df_v5n48_users)) # 0.006565; expt older
+
+# gender
+ggplot(df_v5n48_users, aes(Sex, fill=condition)) + geom_bar(position=position_dodge()) 
+
+t <- table(df_v5n48_users$condition, df_v5n48_users$Sex); t
+chisq.test(t) # 0.3947
+```
+
+```{r can we expect age to interact with outcomes? possibly behavior...not super clear...interacts with condition?}
+
+summary(lm(changeRelativeToOutcomeBehaviorFirstItem_num ~ age, df_v5n48_users)) # 0.493
+
+df_v5n48_users %>% ggplot(aes(age, changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+df_v5n48_users %>% ggplot(aes(age, changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+summary(lm(changeRelativeToOutcomeBehavior_num ~ age, df_v5n48_users)) # 0.09352; older, less consistent (trend)
+
+df_v5n48_users %>% ggplot(aes(age, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+df_v5n48_users %>% ggplot(aes(age, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+summary(lm(changeRelativeToOutcome_num ~ age, df_v5n48_users)) # 0.6468
+
+df_v5n48_users %>% ggplot(aes(age, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+df_v5n48_users %>% ggplot(aes(age, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+# when you're older, you're less likely to change behavior in response to feedback...?
+# this relationship doesn't hold in v4 beliefs or v5 beliefs
+
+```
+
+
+```{r diff in predictions continuous? no}
+
+ggplot(df_v5n48_users, aes(diff_interventionPredictRG, fill=condition)) + geom_bar(position=position_dodge()) 
+
+summary(lm(interventionPredictRestudy ~ condition, df_v5n48_users)) # 0.656
+summary(lm(interventionPredictGenerate ~ condition, df_v5n48_users)) # 0.415
+summary(lm(diff_interventionPredictRG ~ condition, df_v5n48_users)) # 0.753
+
+
+```
+
+```{r diff in predictions categorical? no}
+ 
+ggplot(df_v5n48_users, aes(interventionPrediction, fill=condition)) + geom_bar(position=position_dodge()) 
+
+t <- table(df_v5n48_users$condition, df_v5n48_users$interventionPrediction); t
+chisq.test(t) # 0.8435
+
+```
+
+```{r diff in outcomes (generation effect) continuous? no}
+
+# diffRG
+ggplot(df_v5n48_users, aes(diff_interventionTestOutcomeRG, fill=condition)) + geom_bar(position=position_dodge()) 
+
+summary(lm(diff_interventionTestOutcomeRG ~ condition, df_v5n48_users)) # 0.2931
+
+```
+
+
+```{r diff in outcomes (generation effect) categorical? no}
+
+# REG
+ 
+ggplot(df_v5n48_users, aes(interventionOutcome, fill=condition)) + geom_bar(position=position_dodge()) 
+
+t <- table(df_v5n48_users$condition, df_v5n48_users$interventionPrediction); t
+chisq.test(t) # 0.8435
+
+
+```
+

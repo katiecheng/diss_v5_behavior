@@ -1,0 +1,165 @@
+---
+title: "diss_v5_exploring_aspects_of_feedback"
+author: "Katie Cheng"
+date: "3/26/2020"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lme4)
+library(lmerTest) # p-values on lmer
+source("summarySE.R")
+library(corrplot)
+library(plyr) # for ddply, calculating means for histograms
+library(apaTables) # for apa.cor.table
+#library(ggpubr) # for balloon plot
+library("ggalluvial") # for alluvial plot
+
+# differences in avgs btw groups
+# hierarchical: differences btw groups, controlling for participant
+```
+
+
+```{r import & wrangle}
+
+source("diss_v5_import.R")
+source("diss_v5_wrangle.R")
+
+```
+# Predict consistency
+
+```{r predict first behav consistency}
+
+
+# diff predict R
+summary(lm(changeRelativeToOutcomeBehaviorFirstItem_num ~ diff_interventionRestudyScoreToPrediction * condition, df_v5n48_users)) # 0.2445
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionRestudyScoreToPrediction, changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionRestudyScoreToPrediction, changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+# diff predict G
+summary(lm(changeRelativeToOutcomeBehaviorFirstItem_num ~ diff_interventionGenerateScoreToPrediction * condition, df_v5n48_users)) # 0.7597
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionGenerateScoreToPrediction, changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionGenerateScoreToPrediction, changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+# diffRG
+summary(lm(changeRelativeToOutcomeBehaviorFirstItem_num ~ diff_interventionTestOutcomeRG * condition, df_v5n48_users)) # 0.6816
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionTestOutcomeRG, changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionTestOutcomeRG, changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+
+# abs(diffRG)
+summary(lm(changeRelativeToOutcomeBehaviorFirstItem_num ~ abs(diff_interventionTestOutcomeRG) * condition, df_v5n48_users)) # 0.1999
+
+filter(df_v5n48_users) %>% ggplot(aes(abs(diff_interventionTestOutcomeRG), changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(abs(diff_interventionTestOutcomeRG), changeRelativeToOutcomeBehaviorFirstItem_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+```
+
+
+
+```{r predict overall behav consistency}
+
+
+# diff predict R
+summary(lm(changeRelativeToOutcomeBehavior_num ~ diff_interventionRestudyScoreToPrediction * condition, df_v5n48_users)) # 0.2696
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionRestudyScoreToPrediction, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionRestudyScoreToPrediction, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+# diff predict G
+summary(lm(changeRelativeToOutcomeBehavior_num ~ diff_interventionGenerateScoreToPrediction * condition, df_v5n48_users)) # 0.2662
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionGenerateScoreToPrediction, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionGenerateScoreToPrediction, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+# diffRG
+summary(lm(changeRelativeToOutcomeBehavior_num ~ diff_interventionTestOutcomeRG * condition, df_v5n48_users)) # 0.2171
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionTestOutcomeRG, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionTestOutcomeRG, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+
+# abs(diffRG)
+summary(lm(changeRelativeToOutcomeBehavior_num ~ abs(diff_interventionTestOutcomeRG) * condition, df_v5n48_users)) # 0.01042; higher abs, more consistent (**), in expt higher abs less consistent (.)
+
+filter(df_v5n48_users) %>% ggplot(aes(abs(diff_interventionTestOutcomeRG), changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(abs(diff_interventionTestOutcomeRG), changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+```
+
+```{r predict belief consistency}
+
+# diff predict R
+summary(lm(changeRelativeToOutcome_num ~ diff_interventionRestudyScoreToPrediction * condition, df_v5n48_users)) # 0.8309
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionRestudyScoreToPrediction, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionRestudyScoreToPrediction, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+# diff predict G
+summary(lm(changeRelativeToOutcome_num ~ diff_interventionGenerateScoreToPrediction * condition, df_v5n48_users)) # 0.135; intercept >0, interaction significant (p=0.0253 *) expt more positive relationship
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionGenerateScoreToPrediction, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionGenerateScoreToPrediction, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+# diffRG
+summary(lm(changeRelativeToOutcome_num ~ diff_interventionTestOutcomeRG * condition, df_v5n48_users)) # 0.5024
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionTestOutcomeRG, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionTestOutcomeRG, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+
+# abs(diffRG)
+summary(lm(changeRelativeToOutcome_num ~ abs(diff_interventionTestOutcomeRG) * condition, df_v5n48_users)) # 0.8944
+
+filter(df_v5n48_users) %>% ggplot(aes(abs(diff_interventionTestOutcomeRG), changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(abs(diff_interventionTestOutcomeRG), changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+```
+
+# predictionRG predict outcomeRG
+
+```{r predictionRG predict outcomeRG}
+
+# diffRG
+summary(lm(diff_interventionTestOutcomeRG ~ diff_interventionPredictRG * condition, df_v5n48_users)) # 0.6225
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionPredictRG, diff_interventionTestOutcomeRG, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_abline(intercept = 0, slope = 1, linetype="dashed")+ geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+
+filter(df_v5n48_users) %>% ggplot(aes(diff_interventionPredictRG, diff_interventionTestOutcomeRG, fill=assessmentBelief, color=assessmentBelief, size=assessmentStrategyChoiceGenerateCount, shape=assessmentBehaviorREG)) + geom_jitter(width=.1, height=.1) + geom_abline(intercept = 0, slope = 1, linetype="dashed")+ geom_vline(xintercept = 0) + geom_hline(yintercept = 0) + facet_wrap(vars(condition)) + scale_x_continuous(limits=c(-5,5))+ scale_y_continuous(limits=c(-5,5))
+
+# scaled for comparison, just to see what happens
+#filter(df_v5n48_users) %>% ggplot(aes(scale(diff_interventionPredictRG, center=F), scale(diff_interventionTestOutcomeRG, center=F), fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_abline(intercept = 0, slope = 1, linetype="dashed")+ geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+
+```
+
+# outcome diffRG predict final diffRG
+
+
+```{r outcome diffRG predict overall behavior diffRG}
+
+# diffRG
+summary(lm(diff_assessmentBehaviorRG ~ diff_interventionTestOutcomeRG * condition, df_v5n48_users)) # 0.01513
+
+filter(df_v5n48_users) %>% ggplot(aes(scale(diff_interventionTestOutcomeRG, center=F), scale(diff_assessmentBehaviorRG, center=F), fill=condition, color=condition)) + geom_jitter(width=.1, height=.1)  + geom_smooth(method=lm)
+filter(df_v5n48_users) %>% ggplot(aes(scale(diff_interventionTestOutcomeRG, center=F), scale(diff_assessmentBehaviorRG, center=F), fill=condition, color=condition)) + geom_jitter(width=.1, height=.1)  + geom_smooth(method=loess)
+
+filter(df_v5n48_users) %>% ggplot(aes(scale(diff_interventionTestOutcomeRG, center=F), scale(diff_assessmentBehaviorRG, center=F), fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_abline(intercept = 0, slope = 1, linetype="dashed") + geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+
+
+```
+
+```{r outcome diffRG predict final belief diffRG}
+
+
+# diffRG
+summary(lm(diff_assessmentBeliefRG_num ~ diff_interventionTestOutcomeRG * condition, df_v5n48_users)) # 0.8238
+
+filter(df_v5n48_users) %>% ggplot(aes(scale(diff_interventionTestOutcomeRG, center=F), scale(diff_assessmentBeliefRG_num, center=F), fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_abline(intercept = 0, slope = 1, linetype="dashed")+ geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+
+
+```

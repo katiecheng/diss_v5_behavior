@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>Prolific Study 1</title>
+  <title>Prolific Study</title>
 
   <!-- Add Firebase SDKs (software dev kit) from the CDN (content delivery network) -->
   <!-- (in the <head> tag of your page, before other script tags)  -->
@@ -235,6 +235,18 @@
   </div>
 </div>
 
+<!-- TODO The choice slide with Restudy and Generate buttons. -->
+<div class="slide" id="choiceRG">
+  <div style="width: 500px; margin: 0 auto;">
+    <h1 id="instructionsHeader">Choose a study strategy</h1>
+  </div>
+  <p class="block-text" id="instructionsText1">How would you like to study the next item?</p>
+  <div style="text-align: center">
+    <button type="button" id="choiceButton1">{{}}</button>
+    <button type="button" id="choiceButton2">{{}}</button>
+  </div>
+</div>
+
 <!-- The choice slide with See Translation button. -->
 <div class="slide" id="choiceSeeTranslation">
   <div style="text-align: center">
@@ -301,41 +313,17 @@
       <input type="radio" name="Q2b" value="none">No effort at all<br>
       <br>
       <h2>Question 3</h2>
-      <p>In the second round of learning Swahili-English word pairs, the 'Learning phase' was self-paced. You could click to 'See Translation' and 'Move On' at your own pace, and you could study using any strategy you chose.<p>
-      <p><b>3a. </b><span>As best you can, please describe the strategy you used.</span></p>
-      <textarea id="Q3a" name="Q3a" rows="5" style="width: 500px"></textarea>
-      <br>
-      <p><b>3b. </b><span id="thirdQuestionText" class="block-text">In general, how effective is the strategy you described above?</span></p>
-      <input type="radio" name="Q3b" value="extremely">Extremely effective<br>
-      <input type="radio" name="Q3b" value="very">Very effective<br>
-      <input type="radio" name="Q3b" value="moderately">Moderately effective<br>
-      <input type="radio" name="Q3b" value="slightly">Slightly effective<br>
-      <input type="radio" name="Q3b" value="not">Not at all effective<br>
-      <br>
-      <p><b>3c. </b><span id="thirdQuestionText" class="block-text">In general, how much effort does the strategy you described above require?</span></p>
-      <input type="radio" name="Q3c" value="greatdeal">A great deal of effort<br>
-      <input type="radio" name="Q3c" value="alot">A lot of effort<br>
-      <input type="radio" name="Q3c" value="moderate">A moderate amount of effort<br>
-      <input type="radio" name="Q3c" value="alittle">A little effort<br>
-      <input type="radio" name="Q3c" value="none">No effort at all<br>
+      <p>In the second round of learning Swahili-English word pairs, the 'Learning phase' was self-regulated. You could click to study each Swahili-English word pair using the strategy you chose.<p>
+      <p>As best you can, please describe your strategy choices in Round 2.</p>
+      <textarea id="Q3" name="Q3" rows="5" style="width: 500px"></textarea>
       <br>
       <h2>Question 4</h2>
-      <p id="howManyText" class="block-text">{{}}</p>
-      <p><b>4a. </b><span id="firstHowManyText" class="block-text">{{}}</span></p>
-      <input id="Q4a" name="Q4a" type="number" min="0" max="20" required>
-      <p class="howManyDenominator" style="display:inline"></p>
-      <br>
-      <p><b>4b. </b><span id="secondHowManyText" class="block-text">{{}}</span></p>
-      <input id="Q4b" name="Q4b" type="number" min="0" max="20" required>
-      <p class="howManyDenominator" style="display:inline"></p>
-      <br><br>
-      <h2>Question 5</h2>
       <p>Overall, how much effort did you put into your participation in this study?</p>
-      <input type="radio" name="Q5" value="greatdeal">A great deal of effort<br>
-      <input type="radio" name="Q5" value="alot">A lot of effort<br>
-      <input type="radio" name="Q5" value="moderate">A moderate amount of effort<br>
-      <input type="radio" name="Q5" value="alittle">A little effort<br>
-      <input type="radio" name="Q5" value="none">No effort at all<br>
+      <input type="radio" name="Q4" value="greatdeal">A great deal of effort<br>
+      <input type="radio" name="Q4" value="alot">A lot of effort<br>
+      <input type="radio" name="Q4" value="moderate">A moderate amount of effort<br>
+      <input type="radio" name="Q4" value="alittle">A little effort<br>
+      <input type="radio" name="Q4" value="none">No effort at all<br>
       <div style="text-align: center">
         <button type="button" id="questionnaireNextButton">Next</button>
       </div>
@@ -397,7 +385,7 @@
 <!-- Include the JavaScript file for the experiment. As written, that script immediately executes commands, so we include it here at the end of the HTML file to ensure that resources referenced by the script actually exist. For instance, one of the immediately executed commands is <code>showSlide("instructions")</code>. If we loaded experiment.js, say, in the <code>head</code> section, <code>showSlide("instructions")</code> would fail because the <code>instructions</code> slide doesn't exist yet. It is possible to load the script in <code>head</code> but you have to ensure that any immediately executed commands, if they rely on potentially uninitialized HTML elements, are _delayed_ until the page is ready, using either [window.onload][onload] or jQuery's more robust [$(document).ready()][domReady]  -->
 <!-- [onload]: https://developer.mozilla.org/en/DOM/window.onload -->
 <!-- [domReady]: http://api.jquery.com/ready/ -->
-<script src="experiment.js"></script>
+<script src="experiment_v5.js"></script>
 
 </body>
 </html>

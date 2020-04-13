@@ -1,0 +1,123 @@
+---
+title: "diss_v5_exploring_full_sequence"
+author: "Katie Cheng"
+date: "4/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lme4)
+library(lmerTest) # p-values on lmer
+source("summarySE.R")
+library(corrplot)
+library(plyr) # for ddply, calculating means for histograms
+library(apaTables) # for apa.cor.table
+#library(ggpubr) # for balloon plot
+library("ggalluvial") # for alluvial plot
+library(cluster) # clustering algs
+library(factoextra) # clustering algs & viz
+# differences in avgs btw groups
+# hierarchical: differences btw groups, controlling for participant
+```
+
+```{r import & wrangle}
+
+source("diss_v5_import.R")
+source("diss_v5_wrangle.R")
+```
+
+```{r}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", diff_interventionPredictRG, diff_interventionTestOutcomeRG, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "interventionOutcome", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    facet_wrap(vars(interventionOutcome), nrow=3) + 
+    scale_x_discrete(labels=c(c(1:20)))
+```
+
+
+
+```{r alignment over time by condition/outcome}
+
+# item colnames
+itemAlignments <- c()
+for (n in c(1:20)) {
+  itemAlignments[n] <- paste("behaviorAlignedWithOutcome_",n,"_num", sep="")
+}
+
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", itemAlignments, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "interventionOutcome", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    facet_wrap(vars(interventionOutcome), nrow=3) + 
+    scale_x_discrete(labels=c(c(1:20)))
+```
+
+```{r behavior}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", diff_assessmentBehaviorRG, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "interventionOutcome", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    facet_wrap(vars(interventionOutcome), nrow=3) + 
+    scale_x_discrete(labels=c(c(1:20)))
+```
+
+```{r learning}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", diff_assessmentBehaviorRG, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "interventionOutcome", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    facet_wrap(vars(interventionOutcome), nrow=3) + 
+    scale_x_discrete(labels=c(c(1:20)))
+```
+
+```{r final belief}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", diff_assessmentBeliefRG_num, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "interventionOutcome", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    facet_wrap(vars(interventionOutcome), nrow=3) + 
+    scale_x_discrete(labels=c(c(1:20)))
+```
+
+```{r effort}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", diff_effortRG, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "interventionOutcome", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+means %>% ggplot(aes(measures, mean, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    facet_wrap(vars(interventionOutcome), nrow=3) + 
+    scale_x_discrete(labels=c(c(1:20)))
+```
+
+```{r n in each cell}
+table(df_v5n48_users$condition, df_v5n48_users$interventionOutcome)
+```
+
