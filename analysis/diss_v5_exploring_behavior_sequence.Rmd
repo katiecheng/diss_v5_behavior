@@ -63,12 +63,15 @@ summary(lm(changeRelativeToOutcomeBehavior_num ~ assessStratOrder_1_strategy_num
 
 summary(lm(changeRelativeToOutcome_num ~ assessStratOrder_1_strategy_num+assessStratOrder_2_strategy_num+assessStratOrder_3_strategy_num+assessStratOrder_4_strategy_num+assessStratOrder_5_strategy_num+assessStratOrder_6_strategy_num+assessStratOrder_7_strategy_num+assessStratOrder_8_strategy_num+assessStratOrder_9_strategy_num+assessStratOrder_10_strategy_num+assessStratOrder_11_strategy_num+assessStratOrder_12_strategy_num+assessStratOrder_13_strategy_num+assessStratOrder_14_strategy_num+assessStratOrder_15_strategy_num+assessStratOrder_16_strategy_num+assessStratOrder_17_strategy_num+assessStratOrder_18_strategy_num+assessStratOrder_19_strategy_num+assessStratOrder_20_strategy_num, df_v5n48_users))
 
+# can't stick this into lm
+paste("assessStratOrder", c(1:20), "strategy_num", sep="_")
+df_v5n48_users[paste("assessStratOrder", c(1:20), "strategy_num", sep="_")]
+
 ```
 
 ```{r visualize choices over time}
 
-paste("assessStratOrder", c(1:20), "strategy_num", sep="_")
-paste("assessStratOrder", c(1:20), "strategy_num", sep="_")
+
 
 ggplot(df_v5n48, aes(x=assessmentStrategyOrder, y=prolificId, fill=assessmentStrategy)) + geom_tile() +facet_wrap(vars(condition), ncol=1)
 
@@ -298,6 +301,14 @@ summary(lm(assessmentBelief_num ~ cluster, df_v5n48_users)) # 0.06014; trend tha
 summary(lm(finalMatchOutcome ~ finalBehaviorMatchOutcome, df_v5n48_users)) # 0.1772
 
 summary(lm(assessmentBelief_num ~ finalBehaviorMatchOutcome, df_v5n48_users)) # 0.004797
+
+```
+```{r}
+df_v5n48_users$assessmentBelief
+df_v5n48_users$diff_assessmentBeliefRG_num
+df_v5n48_users$assessmentStrategyChoiceGenerateCount
+df_v5n48$assessmentStrategy
+
 
 ```
 
