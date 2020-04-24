@@ -2,23 +2,21 @@ import pandas as pd
 import numpy as np
 from numpy.polynomial.polynomial import polyfit
 import matplotlib.pyplot as plt
+#import math 
 
-%matplotlib inline
 
 df_users = pd.read_csv(
-  '2020-03-10_diss-v5-behavior_df-users-items_v5n48_users.csv'
+  '/Users/katie/Desktop/diss_v5_behavior/data/2020-03-10_diss-v5-behavior_df-users-items_v5n48_users.csv'
 )
 
 df_items = pd.read_csv(
-  '2020-03-10_diss-v5-behavior_df-users-items_v5n48.csv'
+  '/Users/katie/Desktop/diss_v5_behavior/data/2020-03-10_diss-v5-behavior_df-users-items_v5n48.csv'
 )
 
 df_users = df_users.set_index(['prolificId'])
 # the stuff later on breaks if I index df_items
 #df_items = df_items.set_index(['prolificId', 'itemIndex'])
 
-#df_users.head()
-#df_items.head()
 
 def scatter_plot(df, feature, target):
     plt.figure(figsize=(16, 8))
@@ -59,7 +57,6 @@ df_stratsToColumns['assessmentStrategySwitches'] = df_stratsToColumns['assessmen
 df_users = pd.concat([df_users, df_stratsToColumns], axis=1)
 
 # check
-# df_stratsToColumns[['assessmentStrategySequence','assessmentStrategySwitches']] 
 # df_users[['assessmentStrategySequence','assessmentStrategySwitches']] 
 
 
@@ -80,12 +77,22 @@ df_users = pd.concat([df_users, df_accuraciesToColumns], axis=1)
 # df_accuraciesToColumns['assessmentAccuracySequence']
 # df_users[['assessmentAccuracySequence']] 
 
-"""
-two strings
-split them into lists of characters
-zip them into a list of lists
-"""
 
+"""
+Probability next is an R given G-fail vs. G-success
+
+make sequence into a list of lists
+[['G', 1], ['G', 0], ...]
+
+iterate through list
+maintain counts:
+# G0s
+# followed by R
+# followed by G
+# no choice to follow
+for each ['G', 0], if index is 19, no choice to follow, else if followed by R +=R, else +=G
+"""
+# two strings, split them into lists of characters, zip them into a list of lists
 df_users['assessmentStratAcc'] = df_users[['assessmentStrategySequence','assessmentAccuracySequence']].apply(
     lambda x: np.array(zip(
             list(str(x['assessmentStrategySequence'])), 
@@ -93,34 +100,106 @@ df_users['assessmentStratAcc'] = df_users[['assessmentStrategySequence','assessm
             )) if pd.notnull(x['assessmentStrategySequence']) else x['assessmentStrategySequence'],
     axis=1 # apply to each row
 )
-
 # check
 # df_users['assessmentStratAcc']
 
 
+df_users['assessmentStratA'] = df_users[['assessmentStrategySequence','assessmentAccuracySequence']].apply(
+    lambda x: np.array(zip(
+            list(str(x['assessmentStrategySequence'])), 
+            list(str(x['assessmentAccuracySequence']))
+            )) if pd.notnull(x['assessmentStrategySequence']) else x['assessmentStrategySequence'],
+    axis=1 # apply to each row
+)
 
-
-# number of generate-failures
-
-# % of generates that were failures
 
 """
-make sequence into dict?
-{1: ['G', 1], 2: ['G', 0]...}
-a list of lists?
-[['G',1], ['G', 0]]
-a list?
-[G1, G0, R1, R0...]
-probability next is an R given G-fail
+write a function that can calculate the probability of stay vs. switch for each cell
+r1, r0, g1, g0
+Doesn't count the last, since no choice to follow
 """
 
+def helperFunc(stratAccList, strategy, accuracy):
+    numStratAcc = 0
+    numStratAcc_exclude20 = 0
+    numStay = 0
+    numSwitch = 0
+    for i in range(20):
+        if pd.isnull(np.array(stratAccList)).all():
+            # had to do isnull instead of notnull, else breaks
+            pass 
+        else:
+            if (stratAccList[i] == [strategy, accuracy]).all():
+                if i < 19:
+                    numStratAcc += 1
+                    numStratAcc_exclude20 += 1
+                    if stratAccList[i+1][0] == strategy:
+                        numStay += 1
+                    else:
+                        numSwitch += 1
+                else:
+                    numStratAcc += 1
+    if numStratAcc_exclude20 > 0:
+        probStay = numStay / float(numStratAcc_exclude20)
+        probSwitch = numSwitch / float(numStratAcc_exclude20)
+    else:
+        probStay = float("nan")
+        probSwitch = float("nan")
+    return (numStratAcc, probStay, probSwitch)
+
+
+def calcProbabilityStaySwitch(df, strategy, accuracy):
+    df_users['howMany_%s_%s' %(strategy, accuracy)], \
+    df_users['probStay_after_%s_%s' %(strategy, accuracy)], \
+    df_users['probSwitch_after_%s_%s' %(strategy, accuracy)] = \
+    zip(*df_users['assessmentStratAcc'].map(lambda seq: helperFunc(seq, strategy, accuracy)))
+
+
+calcProbabilityStaySwitch(df_users, "G", "0")
+calcProbabilityStaySwitch(df_users, "R", "0")
+calcProbabilityStaySwitch(df_users, "G", "1")
+calcProbabilityStaySwitch(df_users, "R", "1")
+
+# summarize across all participants
+# df_users[['howMany_G_0', 'probStay_after_G_0', 'probSwitch_after_G_0',
+#          'howMany_G_1', 'probStay_after_G_1', 'probSwitch_after_G_1',
+#          'howMany_R_0', 'probStay_after_R_0', 'probSwitch_after_R_0', 
+#          'howMany_R_1', 'probStay_after_R_1', 'probSwitch_after_R_1']].describe().transpose().to_csv(
+#             '/Users/katie/Desktop/diss_v5_behavior/data/behavSeq_probabilityStaySwitch.csv')
+
+# break it down by condition and REG outcome
+# df_users[['condition', 'interventionOutcome', 
+#          'howMany_G_0', 'probStay_after_G_0', 'probSwitch_after_G_0',
+#          'howMany_G_1', 'probStay_after_G_1', 'probSwitch_after_G_1',
+#          'howMany_R_0', 'probStay_after_R_0', 'probSwitch_after_R_0', 
+#          'howMany_R_1', 'probStay_after_R_1', 'probSwitch_after_R_1']].groupby(
+#             ['condition', 'interventionOutcome']).describe().transpose().to_csv(
+#             '/Users/katie/Desktop/diss_v5_behavior/data/behavSeq_probabilityStaySwitch_grouped.csv')
+
+"""
+how many G0 expereinced by outcome_G belief_R vs.
+how many G0 expereinced by outcome_G belief_G ?
+"""
+# df_users[['condition', 'interventionOutcome', 'assessmentBelief', 
+#          'howMany_G_0', #'probStay_after_G_0', 'probSwitch_after_G_0',
+#          'howMany_G_1', #'probStay_after_G_1', 'probSwitch_after_G_1',
+#          'howMany_R_0', #'probStay_after_R_0', 'probSwitch_after_R_0', 
+#          'howMany_R_1']].groupby( #'probStay_after_R_1', 'probSwitch_after_R_1']]
+#             ['condition', 'interventionOutcome', 'assessmentBelief']).describe().transpose().to_csv(
+#             '/Users/katie/Desktop/diss_v5_behavior/data/behavSeq_howManyStaySwitch_grouped.csv')
 
 
 
+# overall, switching after G0 vs after G1
+# by condition
+
+
+# Frequencies
 # how many generate/restudy
 # number of switches
-# number of generate failures
+# number of generate-failures
+# % of generates that were failures
 
 
-scatter_plot(df_users, "assessmentStrategyChoiceGenerateCount", "diff_assessmentBeliefRG_num")
-scatter_plot(df_users, "assessmentStrategySwitches", "diff_assessmentBeliefRG_num")
+#scatter_plot(df_users, "assessmentStrategyChoiceGenerateCount", "diff_assessmentBeliefRG_num")
+#scatter_plot(df_users, "assessmentStrategySwitches", "diff_assessmentBeliefRG_num")
