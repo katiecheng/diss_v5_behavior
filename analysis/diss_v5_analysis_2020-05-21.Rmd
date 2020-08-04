@@ -1,0 +1,1001 @@
+---
+title: "diss_v5_analysis_2020-05-21"
+author: "Katie Cheng"
+date: "5/21/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lme4)
+library(lmerTest) # p-values on lmer
+source("summarySE.R")
+library(corrplot)
+library(plyr) # for ddply, calculating means for histograms
+library(apaTables) # for apa.cor.table
+#library(ggpubr) # for balloon plot
+library("ggalluvial") # for alluvial plot
+library(DescTools) # for estimating multinomial CIs: https://rcompanion.org/handbook/H_03.html
+library(psych) # summary stats for multiple variables
+
+# differences in avgs btw groups
+# hierarchical: differences btw groups, controlling for participant
+```
+
+```{r import & wrangle}
+
+source("diss_v5_import.R")
+source("diss_v5_wrangle.R")
+
+
+
+```
+
+# replication
+
+```{r between prediction, fig.width=3, fig.height=2}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", c("interventionPredictGenerate", "interventionPredictRestudy"), factor_key = TRUE) # factor_key preserves order
+
+means <- summarySE(melt, measurevar="mean", groupvars=c("measures"), na.rm=TRUE, conf.interval=0.95)#; means
+
+means %>% ggplot(aes(x=measures, y=mean)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) +
+  scale_x_discrete(labels=c("Generate", "Restudy")) + 
+  scale_y_continuous(limits=c(0,5.5))+
+  ylab("Avg predicted score")+
+  xlab("Strategy")
+
+# test if predictions are different
+describe(df_v5n48_users[c("interventionPredictRestudy", "interventionPredictGenerate")])
+
+# restudy vs. generate
+t.test(df_v5n48_users$interventionPredictRestudy, df_v5n48_users$interventionPredictGenerate, paired=T)
+
+```
+```{r between outcome, fig.width=3, fig.height=2}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", c("interventionTestGenerateScore", "interventionTestRestudyScore"), factor_key = TRUE) # factor_key preserves order
+
+means <- summarySE(melt, measurevar="mean", groupvars=c("measures"), na.rm=TRUE, conf.interval=0.95)#; means
+
+means %>% ggplot(aes(x=measures, y=mean)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) +
+  scale_x_discrete(labels=c("Generate", "Restudy")) + 
+  scale_y_continuous(limits=c(0,5.5))+
+  ylab("Avg actual score")+
+  xlab("Strategy")
+
+describe(df_v5n48_users[c("interventionTestRestudyScore", "interventionTestGenerateScore")])
+
+# generate vs. restudy
+t.test(df_v5n48_users$interventionTestRestudyScore, df_v5n48_users$interventionTestGenerateScore, paired=T)
+
+```
+```{r between predict vs. actual EXCLUDE}
+
+t.test(df_v5n48_users$interventionPredictRestudy, df_v5n48_users$interventionTestRestudyScore, paired=T) # 0.01772
+
+
+t.test(df_v5n48_users$interventionPredictGenerate, df_v5n48_users$interventionTestGenerateScore, paired=T) # 0.008439
+
+
+# misconception equally bad?
+describe(df_v5n48_users[c("diff_interventionRestudyScoreToPrediction", "diff_interventionGenerateScoreToPrediction")])
+
+# generate vs. restudy
+t.test(abs(df_v5n48_users$diff_interventionGenerateScoreToPrediction), abs(df_v5n48_users$diff_interventionRestudyScoreToPrediction), paired=T)
+
+```
+
+```{r within prediction, fig.width=3, fig.height=2}
+
+df_v5n48_users %>% ggplot(aes(interventionPrediction)) + 
+  geom_bar(aes(y=(..count..)/sum(..count..))) + 
+  scale_y_continuous(labels=scales::percent, limits=c(0,.7)) +
+  ylab("% participants")+
+  xlab("Prediction")
+
+# test if it's a uniform distribution
+t<- table(df_v5n48_users$interventionPrediction); round(addmargins(t)/ nrow(df_v5n48_users), 2)
+chisq.test(t)
+MultinomCI(t, conf.level = 0.95, method="sisonglaz")
+
+```
+
+
+```{r within outcome, fig.width=3, fig.height=2}
+
+df_v5n48_users %>% ggplot(aes(interventionOutcome)) + 
+  geom_bar(aes(y=(..count..)/sum(..count..))) + 
+  scale_y_continuous(labels=scales::percent, limits=c(0,.7)) +
+  ylab("% participants")+
+  xlab("Actual Outcome")
+
+# test if it's a uniform distribution
+t<- table(df_v5n48_users$interventionOutcome); round(addmargins(t)/ nrow(df_v5n48_users), 2)
+chisq.test(t)
+MultinomCI(t, conf.level = 0.95, method="sisonglaz")
+
+```
+
+# check for random assignment
+```{r v5n48 demographics}
+
+table(df_v5n48_users$Sex) # 31 f (67%), 15 m
+
+mean(df_v5n48_users$age, na.rm=T) # 33.4
+median(df_v5n48_users$age, na.rm=T) # 31
+
+table(df_v5n48_users$`Employment Status`)
+
+table(df_v5n48_users$Nationality) # mostly US (and Italy? and Germany?)
+```
+
+
+```{r v5n48 demographics by condition}
+
+table(df_v5n48_users$condition, df_v5n48_users$Sex)
+
+chisq.test(table(df_v5n48_users$condition, df_v5n48_users$Sex)) # n.s.
+
+# excluding old person
+mean(filter(df_v5n48_users, age<100 & condition=="expt")$age, na.rm=T) # 
+mean(filter(df_v5n48_users, age<100 &condition=="control")$age, na.rm=T) # 
+
+median(filter(df_v5n48_users, age<100 &condition=="expt")$age, na.rm=T) # 
+median(filter(df_v5n48_users, age<100 &condition=="control")$age, na.rm=T) # 
+
+
+summary(lm(age ~ condition, filter(df_v5n48_users, age<100))) # n.s.
+
+table(df_v5n48_users$condition, df_v5n48_users$`Employment Status`)
+chisq.test(table(df_v5n48_users$condition, df_v5n48_users$`Employment Status`)) # n.s.
+
+chisq.test(table(df_v5n48_users$condition, df_v5n48_users$Nationality)) # n.s.
+
+```
+
+```{r v5n48 demographics related to consistency beliefs?}
+
+#sex
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(changeRelativeToOutcome_num ~ Sex, df_v5n48_users)) # ns
+
+#age
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(changeRelativeToOutcome_num ~ age, df_v5n48_users)) # ns
+
+filter(df_v5n48_users,  age<100) %>% ggplot(aes(age, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users,  age<100) %>% ggplot(aes(age, changeRelativeToOutcome_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+
+#employ
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(changeRelativeToOutcome_num ~ `Employment Status`, df_v5n48_users)) # p=.01
+
+# nationality
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(changeRelativeToOutcome_num ~ Nationality, df_v5n48_users)) # ns
+
+
+```
+
+```{r v5n48 demographics related to consistency behaviors?}
+
+#sex
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(changeRelativeToOutcomeBehavior_num ~ Sex, df_v5n48_users)) # ns
+
+#age
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(changeRelativeToOutcomeBehavior_num ~ age, df_v5n48_users)) # trend, p=.09
+
+filter(df_v5n48_users,  age<100) %>% ggplot(aes(age, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users,  age<100) %>% ggplot(aes(age, changeRelativeToOutcomeBehavior_num, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+
+#employ
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(changeRelativeToOutcomeBehavior_num ~ `Employment Status`, df_v5n48_users)) # ns
+
+# nationality
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(changeRelativeToOutcomeBehavior_num ~ Nationality, df_v5n48_users)) # ns
+
+
+```
+
+```{r v5n48 demographics related to consistency learning outcomes?}
+
+#sex
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(assessmentTestScore ~ Sex, df_v5n48_users)) # ns
+
+#age
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(assessmentTestScore ~ age, df_v5n48_users)) # ns
+
+filter(df_v5n48_users,  age<100) %>% ggplot(aes(age, assessmentTestScore, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=lm)
+filter(df_v5n48_users,  age<100) %>% ggplot(aes(age, assessmentTestScore, fill=condition, color=condition)) + geom_jitter(width=.1, height=.1) + geom_smooth(method=loess)
+
+
+#employ
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(assessmentTestScore ~ `Employment Status`, df_v5n48_users)) # ns
+
+# nationality
+# Change prediction to outcome consistent or inconsistent with feedback (0 or 1)
+summary(lm(assessmentTestScore ~ Nationality, df_v5n48_users)) # ns
+
+
+```
+
+
+# checking behavioral measure
+```{r strongG differ from strongR?}
+
+# if the behav measure is good
+# we'd expect strong G believers to show higher rates of G than strong R believers
+
+
+df_v5n48_users$strongBelievers <- factor(ifelse(
+  (df_v5n48_users$interventionPrediction=="generate" &
+       df_v5n48_users$interventionOutcome=="generate" &
+       df_v5n48_users$assessmentBelief=="generate"), "strongGenerate",
+  ifelse((df_v5n48_users$interventionPrediction=="restudy" &
+       df_v5n48_users$interventionOutcome=="restudy" &
+       df_v5n48_users$assessmentBelief=="restudy"), "strongRestudy", "other")))
+
+# reorder variable levels
+df_v5n48_users$strongBelievers <- factor(df_v5n48_users$strongBelievers, levels = c("strongGenerate", "strongRestudy", "other"))
+
+summary(lm(assessmentStrategyChoiceGenerateCount ~ strongBelievers, df_v5n48_users))
+
+means <- summarySE(df_v5n48_users, measurevar="assessmentStrategyChoiceGenerateCount", groupvars=c("strongBelievers"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=strongBelievers, y=assessmentStrategyChoiceGenerateCount, fill=strongBelievers)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=assessmentStrategyChoiceGenerateCount-ci, ymax=assessmentStrategyChoiceGenerateCount+ci), width=.2, position=position_dodge(.9))
+
+
+
+```
+
+# intervention effects?
+
+```{r summary}
+
+describe(filter(df_v5n48_users, condition=="expt")[c(
+  "effectivenessRestudy_num", 
+  "effectivenessGenerate_num",
+  "diff_assessmentBeliefRG_num",
+  "assessmentStrategyChoiceGenerateCount", 
+  "assessmentTestScore",
+  "changeTestScore"
+  )])
+
+describe(filter(df_v5n48_users, condition=="control")[c(
+  "effectivenessRestudy_num", 
+  "effectivenessGenerate_num",
+  "diff_assessmentBeliefRG_num",
+  "assessmentStrategyChoiceGenerateCount", 
+  "assessmentTestScore",
+  "changeTestScore"
+  )])
+
+apa.t.table()
+
+t.test(filter(df_v5n48_users, condition=="expt")$effectivenessRestudy_num, 
+       filter(df_v5n48_users, condition=="control")$effectivenessRestudy_num)
+
+t.test(filter(df_v5n48_users, condition=="expt")$effectivenessGenerate_num, 
+       filter(df_v5n48_users, condition=="control")$effectivenessGenerate_num)
+
+t.test(filter(df_v5n48_users, condition=="expt")$diff_assessmentBeliefRG_num, 
+       filter(df_v5n48_users, condition=="control")$diff_assessmentBeliefRG_num)
+
+t.test(filter(df_v5n48_users, condition=="expt")$assessmentStrategyChoiceGenerateCount, 
+       filter(df_v5n48_users, condition=="control")$assessmentStrategyChoiceGenerateCount)
+
+t.test(filter(df_v5n48_users, condition=="expt")$assessmentTestScore, 
+       filter(df_v5n48_users, condition=="control")$assessmentTestScore)
+
+t.test(filter(df_v5n48_users, condition=="expt")$changeTestScore, 
+       filter(df_v5n48_users, condition=="control")$changeTestScore)
+
+
+```
+
+```{r belief, fig.width=4, fig.height=5}
+
+
+summary(lm(diff_assessmentBeliefRG_num ~ condition, df_v5n48_users)) # 0.722
+
+
+means <- summarySE(df_v5n48_users, measurevar="diff_assessmentBeliefRG_num", groupvars=c("condition"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=condition, y=diff_assessmentBeliefRG_num, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=diff_assessmentBeliefRG_num-ci, ymax=diff_assessmentBeliefRG_num+ci), width=.2, position=position_dodge(.9)) + 
+  scale_y_continuous(limits=c(-.5,.7))
+```
+
+```{r belief subset}
+
+
+summary(lm(diff_assessmentBeliefRG_num ~ condition, df_v5n48_users_predRoutG)) # 0.07328
+
+means <- summarySE(df_v5n48_users_predRoutG, measurevar="diff_assessmentBeliefRG_num", groupvars=c("condition"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=condition, y=diff_assessmentBeliefRG_num, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=diff_assessmentBeliefRG_num-ci, ymax=diff_assessmentBeliefRG_num+ci), width=.2, position=position_dodge(.9))
+
+
+```
+
+
+```{r does not replicate increased consistency beliefs with outcomes found in v4, fig.width=4, fig.height=5}
+
+t <- table(df_v5n48_users$condition, df_v5n48_users$changeRelativeToOutcome); addmargins(t)
+chisq.test(t) # 0.7066
+
+ggplot(df_v5n48_users) + geom_bar(aes(changeRelativeToOutcome, fill=condition), position=position_dodge())
+
+ggplot(data=df_v5n48_users, aes(x=changeRelativeToOutcome, y=..prop.., group=condition, color=condition, fill=condition)) + geom_bar(position=position_dodge()) + geom_text(stat="count", aes(label=round(..prop..,2), y=..prop.. + .02), position=position_dodge(width=0.9))+ 
+  scale_y_continuous(limits=c(0,.82))
+
+summary(lm(changeRelativeToOutcome_num ~ condition, df_v5n48_users))
+summary(lm(changeRelativeToOutcome_num ~ condition + interventionPrediction + interventionOutcome, df_v5n48_users))
+
+```
+```{r consistency beliefs of predictR-outcomeG only?}
+
+
+t <- table(df_v5n48_users_predRoutG$condition, df_v5n48_users_predRoutG$changeRelativeToOutcome); addmargins(t)
+chisq.test(t) # 0.0954
+
+ggplot(df_v5n48_users_predRoutG) + geom_bar(aes(changeRelativeToOutcome, fill=condition), position=position_dodge())
+
+ggplot(data=df_v5n48_users_predRoutG, aes(x=changeRelativeToOutcome, y=..prop.., group=condition, color=condition, fill=condition)) + geom_bar(position=position_dodge()) + geom_text(stat="count", aes(label=round(..prop..,2), y=..prop.. + .02), position=position_dodge(width=0.9))
+
+summary(lm(changeRelativeToOutcome_num ~ condition, df_v5n48_users_predRoutG)) # 0.02237
+
+```
+```{r effect of condition on other measures of belief outcomes}
+
+summary(lm(effectivenessGenerate_num ~ condition, df_v5n48_users))
+summary(lm(effectivenessGenerate_num ~ condition + diff_interventionPredictRG + diff_interventionTestOutcomeRG, df_v5n48_users))
+
+summary(lm(diff_assessmentBeliefRG_num ~ condition, df_v5n48_users))
+summary(lm(diff_assessmentBeliefRG_num ~ condition + diff_interventionPredictRG + diff_interventionTestOutcomeRG, df_v5n48_users))
+
+```
+```{r effect of condition on behaviors, fig.width=4, fig.height=5}
+
+summary(lm(assessmentStrategyChoiceGenerateCount ~ condition, df_v5n48_users))
+summary(lm(assessmentStrategyChoiceGenerateCount ~ condition + diff_interventionPredictRG + diff_interventionTestOutcomeRG, df_v5n48_users))
+
+# ns
+
+means <- summarySE(df_v5n48_users, measurevar="assessmentStrategyChoiceGenerateCount", groupvars=c("condition"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=condition, y=assessmentStrategyChoiceGenerateCount, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=assessmentStrategyChoiceGenerateCount-ci, ymax=assessmentStrategyChoiceGenerateCount+ci), width=.2, position=position_dodge(.9))
+
+
+```
+```{r behaviors of predictR-outcomeG only?}
+
+summary(lm(assessmentStrategyChoiceGenerateCount ~ condition, df_v5n48_users_predRoutG)) # 0.3869
+summary(lm(assessmentStrategyChoiceGenerateCount ~ condition + diff_interventionPredictRG + diff_interventionTestOutcomeRG, df_v5n48_users_predRoutG))
+
+# ns
+
+means <- summarySE(df_v5n48_users_predRoutG, measurevar="assessmentStrategyChoiceGenerateCount", groupvars=c("condition"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=condition, y=assessmentStrategyChoiceGenerateCount, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=assessmentStrategyChoiceGenerateCount-ci, ymax=assessmentStrategyChoiceGenerateCount+ci), width=.2, position=position_dodge(.9))
+```
+```{r consistency behaviors with outcomes, fig.width=4, fig.height=5}
+
+t <- table(df_v5n48_users$condition, df_v5n48_users$changeRelativeToOutcomeBehavior); addmargins(t)
+chisq.test(t) # 0.1163
+
+ggplot(df_v5n48_users) + geom_bar(aes(changeRelativeToOutcomeBehavior, fill=condition), position=position_dodge())
+
+ggplot(data=df_v5n48_users, aes(x=changeRelativeToOutcomeBehavior, y=..prop.., group=condition, color=condition, fill=condition)) + geom_bar(position=position_dodge()) + geom_text(stat="count", aes(label=round(..prop..,2), y=..prop.. + .02), position=position_dodge(width=0.9))+ 
+  scale_y_continuous(limits=c(0,.82))
+
+summary(lm(changeRelativeToOutcomeBehavior_num ~ condition, df_v5n48_users)) # 0.06376
+
+```
+```{r consistency behaviors of predictR-outcomeG only?}
+
+
+t <- table(df_v5n48_users_predRoutG$condition, df_v5n48_users_predRoutG$changeRelativeToOutcomeBehavior); addmargins(t)
+chisq.test(t) # 1
+
+ggplot(df_v5n48_users_predRoutG) + geom_bar(aes(changeRelativeToOutcomeBehavior, fill=condition), position=position_dodge())
+
+ggplot(data=df_v5n48_users_predRoutG, aes(x=changeRelativeToOutcomeBehavior, y=..prop.., group=condition, color=condition, fill=condition)) + geom_bar(position=position_dodge()) + geom_text(stat="count", aes(label=round(..prop..,2), y=..prop.. + .02), position=position_dodge(width=0.9)) 
+
+summary(lm(changeRelativeToOutcomeBehavior_num ~ condition, df_v5n48_users_predRoutG)) # 0.7511
+
+```
+
+
+```{r effect of condition on learning outcomes?, fig.width=4, fig.height=5}
+
+summary(lm(assessmentTestScore ~ condition, df_v5n48_users))
+summary(lm(assessmentTestScore ~ condition + diff_interventionPredictRG + diff_interventionTestOutcomeRG, df_v5n48_users))
+
+means <- summarySE(df_v5n48_users, measurevar="assessmentTestScore", groupvars=c("condition"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=condition, y=assessmentTestScore, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=assessmentTestScore-ci, ymax=assessmentTestScore+ci), width=.2, position=position_dodge(.9))
+
+
+summary(lm(changeTestScore ~ condition, df_v5n48_users)) # 0.5853
+
+
+means <- summarySE(df_v5n48_users, measurevar="changeTestScore", groupvars=c("condition"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=condition, y=changeTestScore, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=changeTestScore-ci, ymax=changeTestScore+ci), width=.2, position=position_dodge(.9))+
+  scale_y_continuous(limits=c(0,4))
+
+```
+
+
+
+```{r learning on predictR-outcomeG only?}
+
+summary(lm(assessmentTestScore ~ condition, df_v5n48_users_predRoutG)) # 0.147
+summary(lm(assessmentTestScore ~ condition + diff_interventionPredictRG + diff_interventionTestOutcomeRG, df_v5n48_users_predRoutG))
+
+means <- summarySE(df_v5n48_users_predRoutG, measurevar="assessmentTestScore", groupvars=c("condition"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=condition, y=assessmentTestScore, fill=condition)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=assessmentTestScore-ci, ymax=assessmentTestScore+ci), width=.2, position=position_dodge(.9))
+
+summary(lm(changeTestScore ~ condition, df_v5n48_users_predRoutG)) # 0.7392
+```
+
+# investigating relationships
+```{r relationships with consistency as categorical with behavs learning}
+
+summary(lm(assessmentStrategyChoiceGenerateCount ~ changeRelativeToOutcome, df_v5n48_users))
+
+means <- summarySE(df_v5n48_users, measurevar="assessmentStrategyChoiceGenerateCount", groupvars=c("changeRelativeToOutcome"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=changeRelativeToOutcome, y=assessmentStrategyChoiceGenerateCount, fill=changeRelativeToOutcome)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=assessmentStrategyChoiceGenerateCount-ci, ymax=assessmentStrategyChoiceGenerateCount+ci), width=.2, position=position_dodge(.9))
+
+
+summary(lm(assessmentTestScore ~ changeRelativeToOutcome, df_v5n48_users))
+
+means <- summarySE(df_v5n48_users, measurevar="assessmentTestScore", groupvars=c("changeRelativeToOutcome"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=changeRelativeToOutcome, y=assessmentTestScore, fill=changeRelativeToOutcome)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=assessmentTestScore-ci, ymax=assessmentTestScore+ci), width=.2, position=position_dodge(.9))
+
+
+```
+
+```{r among predictR-outcomeG relationships with consistency as categorical with behavs learning}
+
+summary(lm(assessmentStrategyChoiceGenerateCount ~ changeRelativeToOutcome, df_v5n48_users_predRoutG))
+
+means <- summarySE(df_v5n48_users_predRoutG, measurevar="assessmentStrategyChoiceGenerateCount", groupvars=c("changeRelativeToOutcome"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=changeRelativeToOutcome, y=assessmentStrategyChoiceGenerateCount, fill=changeRelativeToOutcome)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=assessmentStrategyChoiceGenerateCount-ci, ymax=assessmentStrategyChoiceGenerateCount+ci), width=.2, position=position_dodge(.9))
+
+
+summary(lm(assessmentTestScore ~ changeRelativeToOutcome, df_v5n48_users_predRoutG))
+
+means <- summarySE(df_v5n48_users_predRoutG, measurevar="assessmentTestScore", groupvars=c("changeRelativeToOutcome"), na.rm=TRUE, conf.interval=0.95); means
+means %>% ggplot(aes(x=changeRelativeToOutcome, y=assessmentTestScore, fill=changeRelativeToOutcome)) + 
+    geom_bar(position=position_dodge(.9), stat="identity") + 
+    geom_errorbar(aes(ymin=assessmentTestScore-ci, ymax=assessmentTestScore+ci), width=.2, position=position_dodge(.9))
+
+
+```
+```{r relationships among behav learning}
+
+cor.test(df_v5n48_users$assessmentStrategyChoiceGenerateCount, df_v5n48_users$assessmentTestScore)
+
+ggplot(data=df_v5n48_users, aes(x=assessmentStrategyChoiceGenerateCount, y=assessmentTestScore)) + geom_point() + geom_smooth(method=lm)
+
+# subset
+
+cor.test(df_v5n48_users_predRoutG$assessmentStrategyChoiceGenerateCount, df_v5n48_users_predRoutG$assessmentTestScore)
+
+ggplot(data=df_v5n48_users_predRoutG, aes(x=assessmentStrategyChoiceGenerateCount, y=assessmentTestScore)) + geom_point() + geom_smooth(method=lm)
+
+```
+# Exploratory digging: Types of feedback
+```{r correlation tables}
+
+# behav
+apa.cor.table(df_v5n48_users[c(
+  "interventionTestScore",
+  "diff_interventionPredictRG",
+  "diff_interventionTestOutcomeRG",
+  "diff_interventionRestudyScoreToPrediction",
+  "diff_interventionGenerateScoreToPrediction",
+  "assessmentStrategyRestudySuccessRate",
+  "assessmentStrategyGenerateSuccessRate",
+  "assessmentStrategyChoiceGenerateCount",
+  "changeRelativeToOutcomeBehavior_num"
+  )])
+
+# belief
+apa.cor.table(df_v5n48_users[c(
+  "interventionTestScore",
+  "diff_interventionPredictRG",
+  "diff_interventionTestOutcomeRG",
+  "diff_interventionRestudyScoreToPrediction",
+  "diff_interventionGenerateScoreToPrediction",
+  "assessmentStrategyRestudySuccessRate",
+  "assessmentStrategyGenerateSuccessRate",
+  "diff_assessmentBeliefRG_num",
+  "changeRelativeToOutcome_num"
+)])
+
+# learning
+apa.cor.table(df_v5n48_users[c(
+  "interventionTestScore",
+  "diff_interventionPredictRG",
+  "diff_interventionTestOutcomeRG",
+  "diff_interventionRestudyScoreToPrediction",
+  "diff_interventionGenerateScoreToPrediction",
+  "diff_assessmentBeliefRG_num",
+  "changeRelativeToOutcome_num",
+  "assessmentStrategyRestudySuccessRate",
+  "assessmentStrategyGenerateSuccessRate",
+  "assessmentStrategyChoiceGenerateCount",
+  "changeRelativeToOutcomeBehavior_num",
+  "assessmentTestScore"
+  )])
+```
+
+# exploratory digging: behavioral choices over time
+```{r consistency over time by condition}
+
+# for every item, consistency
+
+summary(lm(changeRelativeToOutcomeBehavior_1_num ~ condition, df_v5n48_users))
+summary(lm(changeRelativeToOutcomeBehavior_20_num ~ condition, df_v5n48_users))
+
+# item colnames
+itemConsistencies <- c()
+for (n in c(1:20)) {
+  itemConsistencies[n] <- paste("changeRelativeToOutcomeBehavior_",n,"_num", sep="")
+}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", itemConsistencies, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+
+means %>% ggplot(aes(as.numeric(measures), mean, color=condition)) + 
+    geom_point() + geom_line() +
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+
+means %>% ggplot(aes(as.numeric(measures), mean, fill=condition, color=condition)) + 
+    geom_point() + geom_smooth() +
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+
+```
+
+```{r generates over time}
+
+# item colnames
+itemStrategies <- c()
+itemStrategies_num <- c()
+for (n in c(1:20)) {
+  itemStrategies[n] <- paste("itemStrategy_",n, sep="")
+  itemStrategies_num[n] <- paste("itemStrategy_",n,"_num", sep="")
+} 
+
+for(i in itemStrategies){
+  df_v5n48_users[[paste(i, '_num', sep="")]] <- ifelse(
+  df_v5n48_users[[i]]=="generate", 1,0)
+}
+
+melt <- tidyr::gather(df_v5n48_users, key="measures", value="mean", itemStrategies_num, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+
+means %>% ggplot(aes(as.numeric(measures), mean, color=condition)) + 
+    geom_point(position=position_dodge(.9)) + geom_line(position=position_dodge(.9)) +
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+
+means %>% ggplot(aes(as.numeric(measures), mean, fill=condition, color=condition)) + 
+    geom_point(position=position_dodge(.9)) + geom_smooth(position=position_dodge(.9)) +
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+# subset
+melt <- tidyr::gather(df_v5n48_users_predRoutG, key="measures", value="mean", itemStrategies_num, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+
+means %>% ggplot(aes(as.numeric(measures), mean, color=condition)) + 
+    geom_point(position=position_dodge(.9)) + geom_line(position=position_dodge(.9)) +
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+
+means %>% ggplot(aes(as.numeric(measures), mean, fill=condition, color=condition)) + 
+    geom_point(position=position_dodge(.9)) + geom_smooth(position=position_dodge(.9)) +
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+```
+
+
+```{r consistency over time by condition/outcome}
+
+# for every item, consistency
+# in python...merge 20 files...?
+
+summary(lm(changeRelativeToOutcomeBehavior_1_num ~ condition, df_v5n48_users_predRoutG))
+summary(lm(changeRelativeToOutcomeBehavior_20_num ~ condition, df_v5n48_users_predRoutG))
+
+# item colnames
+itemConsistencies <- c()
+for (n in c(1:20)) {
+  itemConsistencies[n] <- paste("changeRelativeToOutcomeBehavior_",n,"_num", sep="")
+}
+
+melt <- tidyr::gather(df_v5n48_users_predRoutG, key="measures", value="mean", itemConsistencies, factor_key = TRUE) # factor_key preserves order
+means <- summarySE(melt, measurevar="mean", groupvars=c("condition", "interventionPrediction", "measures"), na.rm=TRUE, conf.interval=0.95); means
+
+
+means %>% ggplot(aes(as.numeric(measures), mean, color=condition)) + 
+    geom_point() + geom_line() +
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    #facet_wrap(vars(interventionPrediction), nrow=3) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+
+means %>% ggplot(aes(as.numeric(measures), mean, fill=condition, color=condition)) + 
+    geom_point() + geom_smooth() +
+    geom_errorbar(aes(ymin=mean-ci, ymax=mean+ci), width=.2, position=position_dodge(.9)) + 
+    theme(axis.text.x = element_text(angle =0)) + 
+    scale_x_discrete(labels=c(c(1:20)))
+
+
+```
+# 2020-07-07 Dan Analysis
+
+```{r 2020-07-06 Meeting}
+
+# how is condition coded? dummy coded (i.e. treatment coded) w.r.t. a reference level (level 1 by default)
+df_v5n48_users$condition
+
+hist(df_v5n48_users$diff_interventionPredictRG) # dist is good, -6 to 8
+hist(df_v5n48_users$diff_interventionTestOutcomeRG) # dist looks it's skewed right, is it sig different from 0? (yes; see t.test below)
+hist(df_v5n48_users$diff_assessmentBeliefRG_num) # narrower dist -1.5 to 1.5
+
+# predictions diff from 0?
+t.test(df_v5n48_users$diff_interventionPredictRG) # sig >0; predict restudy
+# outcomes diff from 0?
+t.test(df_v5n48_users$diff_interventionTestOutcomeRG) # sig <0; get generate
+# post diff from pre?
+t.test(df_v5n48_users$diff_interventionPredictRG, df_v5n48_users$diff_assessmentBeliefRG_num, paired = T) # trend, pre-post>0; pre more R than post
+
+# variables differ by condition? No
+summary(lm(diff_interventionPredictRG ~ condition, df_v5n48_users))
+summary(lm(diff_interventionTestOutcomeRG ~ condition, df_v5n48_users))
+summary(lm(diff_assessmentBeliefRG_num ~ condition, df_v5n48_users))
+
+# condition*predictor interaction to predict final?
+summary(lm(diff_assessmentBeliefRG_num ~ condition * diff_interventionPredictRG, df_v5n48_users)) # prediction doesn't interact with condition
+summary(lm(diff_assessmentBeliefRG_num ~ condition * diff_interventionTestOutcomeRG, df_v5n48_users)) # outcome doesn't interact with condition
+
+# exploring by condition: expt
+summary(lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG, filter(df_v5n48_users, condition=="expt"))) # ns
+summary(lm(diff_assessmentBeliefRG_num ~ diff_interventionTestOutcomeRG, filter(df_v5n48_users, condition=="expt"))) # ns
+summary(lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG + diff_interventionTestOutcomeRG, filter(df_v5n48_users, condition=="expt"))) # ns
+summary(lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG * diff_interventionTestOutcomeRG, filter(df_v5n48_users, condition=="expt"))) # no interaction
+
+# exploring by condition: control
+summary(lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG, filter(df_v5n48_users, condition=="control"))) # ns
+summary(lm(diff_assessmentBeliefRG_num ~ diff_interventionTestOutcomeRG, filter(df_v5n48_users, condition=="control"))) # ns
+summary(lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG + diff_interventionTestOutcomeRG, filter(df_v5n48_users, condition=="control"))) # ns
+summary(lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG * diff_interventionTestOutcomeRG, filter(df_v5n48_users, condition=="control"))) # no interaction
+
+# model building
+m1<- lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG, df_v5n48_users); summary(m1) # ns
+m1a <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionPredictRG, df_v5n48_users); summary(m1a) # ns
+anova(m1,m1a)
+
+m2<- lm(diff_assessmentBeliefRG_num ~ diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2) # ns
+m2a <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2a) # ns
+anova(m2,m2a)
+
+m3<- lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m3) # ns
+m3a<- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m3a) # ns
+anova(m2a,m3,m3a) # ns
+anova(m2a,m3a) # ns
+
+
+m4<- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionPredictRG*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m4) # ns
+anova(m2a,m3,m3a,m4) # ns
+
+# conclusion: in v5, there's a change pre->post, but nothing is a significant predictor of final beliefs
+
+```
+
+
+```{r test}
+m1<- lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG, df_v5n48_users); summary(m1)
+m2<- lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG + diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2)
+m3<- lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG * diff_interventionTestOutcomeRG, df_v5n48_users); summary(m3)
+anova(m1,m2,m3) # pred and out don't predict diffFinal
+
+m4<- lm(diff_assessmentBeliefRG_num ~ condition, df_v5n48_users); summary(m4)
+
+### test other outcomes ###
+m4<- lm(changeRelativeToOutcome_num ~ condition, df_v5n48_users); summary(m4) # ns
+
+m1<- lm(changeRelativeToOutcome_num ~ diff_interventionPredictRG, df_v5n48_users); summary(m1) # ns
+m2<- lm(changeRelativeToOutcome_num ~ diff_interventionPredictRG + diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2) # ns
+m3<- lm(changeRelativeToOutcome_num ~ diff_interventionPredictRG * diff_interventionTestOutcomeRG, df_v5n48_users); summary(m3) # 0.02509; sig TODO plot
+
+m4<- lm(assessmentStrategyChoiceGenerateCount ~ condition, df_v5n48_users); summary(m4)
+m4<- lm(changeRelativeToOutcomeBehavior_num ~ condition, df_v5n48_users); summary(m4) # trend
+
+```
+
+# predicting belief/behavior consistency
+
+```{r belief}
+
+# covariates?
+# interventionTestScore (ability)
+# age
+# m1<- lm(changeRelativeToOutcome_num ~ condition + interventionTestScore + age, df_v5n48_users); summary(m1) # 0.8358
+
+m1<- lm(changeRelativeToOutcome_num ~ condition, df_v5n48_users); summary(m1) # 0.5105
+m2<- lm(changeRelativeToOutcome_num ~ condition + diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2) # 0.3313
+m3<- lm(changeRelativeToOutcome_num ~ condition*diff_interventionTestOutcomeRG , df_v5n48_users); summary(m3) # 0.5024
+anova(m1,m2,m3) # nothing predicts belief consistency
+
+m1a<- lm(changeRelativeToOutcome_num ~ condition, filter(df_v5n48_users, !is.na(assessmentStrategyGenerateSuccessRate))); summary(m1a) # 0.456
+m4<- lm(changeRelativeToOutcome_num ~ condition + assessmentStrategyGenerateSuccessRate, df_v5n48_users); summary(m4) # 0.7481; successRate ns
+m5<- lm(changeRelativeToOutcome_num ~ condition*assessmentStrategyGenerateSuccessRate, df_v5n48_users); summary(m5) # 0.7851; no interaction btw successRate and condition
+anova(m1a,m4,m5) # no models are sig
+
+# bringing in vars from data-driven model; other types of feedback
+m6<- lm(changeRelativeToOutcome_num ~ condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessRate, df_v5n48_users); summary(m6) # 0.5703
+m6<- lm(changeRelativeToOutcome_num ~ condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessRate - diff_interventionTestOutcomeRG - assessmentStrategyGenerateSuccessRate, df_v5n48_users); summary(m6) # 0.5703
+
+
+```
+
+```{r behavior}
+
+# covariates?
+# interventionTestScore (ability)
+# age
+# m1<- lm(changeRelativeToOutcomeBehavior_num ~ condition + interventionTestScore + age, df_v5n48_users); summary(m1) # 0.1128
+
+
+m1<- lm(changeRelativeToOutcomeBehavior_num ~ condition, df_v5n48_users); summary(m1) # 0.06376
+m2<- lm(changeRelativeToOutcomeBehavior_num ~ condition + diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2) # 0.1226
+m3<- lm(changeRelativeToOutcomeBehavior_num ~ condition*diff_interventionTestOutcomeRG , df_v5n48_users); summary(m3) # 0.2171
+anova(m1,m2,m3) # nothing predicts behavior consistency; m1 marginal
+
+m1a<- lm(changeRelativeToOutcomeBehavior_num ~ condition, filter(df_v5n48_users, !is.na(assessmentStrategyGenerateSuccessRate))); summary(m1a) # 0.06918
+m4<- lm(changeRelativeToOutcomeBehavior_num ~ condition + assessmentStrategyGenerateSuccessRate, df_v5n48_users); summary(m4) # 0.1725
+m5<- lm(changeRelativeToOutcomeBehavior_num ~ condition*assessmentStrategyGenerateSuccessRate, df_v5n48_users); summary(m5) # 0.1301
+anova(m1a,m4,m5) # none are sig
+
+# bringing in vars from data-driven model; other types of feedback
+m6<- lm(changeRelativeToOutcomeBehavior_num ~ condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessRate, df_v5n48_users); summary(m6) # 0.2058
+m6<- lm(changeRelativeToOutcomeBehavior_num ~ condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessRate - diff_interventionTestOutcomeRG - assessmentStrategyGenerateSuccessRate, df_v5n48_users); summary(m6) # 0.2058
+```
+
+# 2020-07-13 ideal model building predicting diffRG
+
+Apply to behavior, belief, learning in all studies:	
+F ~ condition	hyp
+F ~ condition*O	hyp
+F ~ P + condition*O	hyp
+F ~ condition*P + condition*O	snoop
+F ~ P*condition*O	snoop
+	
+In v6 apriori posthoc:	
+control vs. expt1&2	
+expt1 vs. expt2	
+	
+Relating outcomes:	
+Belief ~ behavior	
+(Behavior ~ belief? Depends on genSuccess as mediator, which could tell us which comes first)	
+Learning ~ belief + behavior	
+
+```{r ideal model building}
+
+# ideal model building predicting behaviors
+m1 <- lm(assessmentStrategyChoiceGenerateCount ~ condition, df_v5n48_users); summary(m1) # 0.7002
+m2 <- lm(assessmentStrategyChoiceGenerateCount ~ condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2) # 0.01513
+m3 <- lm(assessmentStrategyChoiceGenerateCount ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m3) # 0.02745
+m4 <- lm(assessmentStrategyChoiceGenerateCount ~ condition*diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m4) # 0.05147
+m5 <- lm(assessmentStrategyChoiceGenerateCount ~ condition*diff_interventionPredictRG*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m5) # 0.1387
+anova(m1,m2,m3,m4,m5) # m2 best, but m1 n.s.
+# trend effect of condition s.t. expt does more generate, sig main effect of outcome s.t. more R outcome, less generate, and sig interaction s.t. effect of condition differs by outcome
+
+# viz m2 interaction; too detailed
+means <- summarySE(df_v5n48_users, measurevar="assessmentStrategyChoiceGenerateCount", groupvars=c("condition", "diff_interventionTestOutcomeRG"), na.rm=TRUE, conf.interval=0.95); means
+
+means %>% ggplot(aes(x=condition, y=assessmentStrategyChoiceGenerateCount, color=condition, fill=condition)) + facet_wrap(vars(diff_interventionTestOutcomeRG), ncol=72) + #, labeller=label_both) +
+    geom_bar(position=position_dodge(), stat = "identity") + geom_errorbar(aes(ymin=assessmentStrategyChoiceGenerateCount-ci, ymax=assessmentStrategyChoiceGenerateCount+ci), width=.2, position=position_dodge(.9))
+# 
+
+# viz m2 interaction bucketed to make easier to interpret
+means <- summarySE(df_v5n48_users, measurevar="assessmentStrategyChoiceGenerateCount", groupvars=c("condition", "interventionOutcome_num"), na.rm=TRUE, conf.interval=0.95); means
+
+means %>% ggplot(aes(x=condition, y=assessmentStrategyChoiceGenerateCount, color=condition, fill=condition)) + facet_wrap(vars(interventionOutcome_num), ncol=3, labeller=label_both) +
+    geom_bar(position=position_dodge(), stat = "identity") + geom_errorbar(aes(ymin=assessmentStrategyChoiceGenerateCount-ci, ymax=assessmentStrategyChoiceGenerateCount+ci), width=.2, position=position_dodge(.9))
+# 
+
+# ideal model building predicting beliefs
+m1 <- lm(diff_assessmentBeliefRG_num ~ condition, df_v5n48_users); summary(m1) # 0.722
+m2 <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2) # 0.8238
+m3 <- lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m3) # 0.718
+m4 <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m4) # 0.8063
+m5 <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionPredictRG*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m5) # 0.7946
+anova(m1,m2,m3,m4,m5) # no model is predictive
+
+# ideal model building predicting learning outcomes
+m1 <- lm(assessmentTestScore ~ condition, df_v5n48_users); summary(m1) # 0.8276
+m2 <- lm(assessmentTestScore ~ condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2) # 0.7379
+m3 <- lm(assessmentTestScore ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m3) # 0.6523
+m4 <- lm(assessmentTestScore ~ condition*diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m4) # 0.6696
+m5 <- lm(assessmentTestScore ~ condition*diff_interventionPredictRG*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m5) # 0.8585
+anova(m1,m2,m3,m4,m5) # no model is predictive
+
+m1 <- lm(changeTestScore ~ condition, df_v5n48_users); summary(m1) # 0.5853
+m2 <- lm(changeTestScore ~ condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m2) # 0.8694
+m3 <- lm(changeTestScore ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m3) # 0.9504
+m4 <- lm(changeTestScore ~ condition*diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m4) # 0.9447
+m5 <- lm(changeTestScore ~ condition*diff_interventionPredictRG*diff_interventionTestOutcomeRG, df_v5n48_users); summary(m5) # 0.9817
+anova(m1,m2,m3,m4,m5) # no model is predictive
+
+```
+
+```{r ideal model building with genSuccess}
+
+# F ~ condition
+# F ~ condition*O
+# F ~ condition*O + genSuccess
+# F ~ condition*O + condition*genSuccess
+# F ~ P + condition*O + condition*genSuccess
+# F ~ condition*P + condition*O + condition*genSuccess
+# F ~ P*condition*O*genSuccess
+
+df_v5n48_users_generated <- filter(df_v5n48_users, assessmentStrategyChoiceGenerateCount>0); nrow(df_v5n48_users_generated) # n=30
+
+# predicting behaviors
+m1 <- lm(assessmentStrategyChoiceGenerateCount ~ condition, df_v5n48_users_generated); summary(m1) # 0.8664
+m2 <- lm(assessmentStrategyChoiceGenerateCount ~ condition*diff_interventionTestOutcomeRG, df_v5n48_users_generated); summary(m2) # 0.215
+m3 <- lm(assessmentStrategyChoiceGenerateCount ~ condition*diff_interventionTestOutcomeRG + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m3) # 0.0004681
+m4 <- lm(assessmentStrategyChoiceGenerateCount ~ condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m4) # 0.001292
+m5 <- lm(assessmentStrategyChoiceGenerateCount ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m5) # 0.002068
+m6 <- lm(assessmentStrategyChoiceGenerateCount ~ condition*diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m6) # 0.0004431
+m7 <- lm(assessmentStrategyChoiceGenerateCount ~ diff_interventionPredictRG*condition*diff_interventionTestOutcomeRG*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m7) # 0.04495
+anova(m1,m2,m3,m4,m5,m6,m7) # m3 is best, m6 is also good
+anova(m1,m2,m3,m6) # m3 is best
+
+m1a <- lm(assessmentStrategyChoiceGenerateCount ~ assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m1a) # 1.796e-05
+m2a <- lm(assessmentStrategyChoiceGenerateCount ~ condition + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m2a) # 0.0001208
+m3a <- lm(assessmentStrategyChoiceGenerateCount ~ condition*diff_interventionTestOutcomeRG + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m3a) # 0.0004681
+m4a <- lm(assessmentStrategyChoiceGenerateCount ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m4a) # 0.0007798
+anova(m1a,m2a,m3a,m4a) # m1a is best
+
+# predicting beliefs
+m1 <- lm(diff_assessmentBeliefRG_num ~ condition, df_v5n48_users_generated); summary(m1) # 0.9473
+m2 <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionTestOutcomeRG, df_v5n48_users_generated); summary(m2) # 0.961
+m3 <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionTestOutcomeRG + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m3) # 0.5263
+m4 <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m4) # 0.645
+m5 <- lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m5) # 0.537
+m6 <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m6) # 0.4127
+m7 <- lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG*condition*diff_interventionTestOutcomeRG*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m7) # 0.665
+anova(m1,m2,m3,m4,m5,m6,m7) # none are predictive
+
+m1a <- lm(diff_assessmentBeliefRG_num ~ assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m1a) # 0.1057
+m2a <- lm(diff_assessmentBeliefRG_num ~ condition + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m2a) # 0.2767
+m3a <- lm(diff_assessmentBeliefRG_num ~ condition*diff_interventionTestOutcomeRG + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m3a) # 0.5263
+m4a <- lm(diff_assessmentBeliefRG_num ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m4a) # 0.4065
+anova(m1a,m2a,m3a,m4a) # none are predictive
+
+
+# predicting learning
+m1 <- lm(changeTestScore ~ condition, df_v5n48_users_generated); summary(m1) # 0.7835
+m2 <- lm(changeTestScore ~ condition*diff_interventionTestOutcomeRG, df_v5n48_users_generated); summary(m2) # 0.8375
+m3 <- lm(changeTestScore ~ condition*diff_interventionTestOutcomeRG + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m3) # 0.4969
+m4 <- lm(changeTestScore ~ condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m4) # 0.5716
+m5 <- lm(changeTestScore ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m5) # 0.7072
+m6 <- lm(changeTestScore ~ condition*diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG + condition*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m6) # 0.6651
+m7 <- lm(changeTestScore ~ diff_interventionPredictRG*condition*diff_interventionTestOutcomeRG*assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m7) # 0.6337
+anova(m1,m2,m3,m4,m5,m6,m7) # none are predictive
+
+m1a <- lm(changeTestScore ~ assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m1a) # 0.1161
+m2a <- lm(changeTestScore ~ condition + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m2a) # 0.2773
+m3a <- lm(changeTestScore ~ condition*diff_interventionTestOutcomeRG + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m3a) # 0.4969
+m4a <- lm(changeTestScore ~ diff_interventionPredictRG + condition*diff_interventionTestOutcomeRG + assessmentStrategyGenerateSuccessCount, df_v5n48_users_generated); summary(m4a) # 0.6523
+anova(m1a,m2a,m3a,m4a) # none are predictive
+
+```
+# relating outcomes
+```{r corr outcomes}
+
+apa.cor.table(df_v5n48_users[c(
+  "interventionPredictGenerate",
+  "interventionPredictRestudy",
+  "interventionStrategyGenerateScoreRound1",
+  "interventionStrategyRestudyScoreRound1",
+  "effectivenessGenerate",
+  "effectivenessRestudy",
+  "effortGenerate",
+  "effortRestudy",
+  "assessmentStrategyChoiceGenerateCount",
+  "interventionTestScore",
+  "assessmentTestScore",
+  "changeTestScore"
+  )], filename="rawOutcomes_corrTable.doc")
+
+apa.cor.table(df_v5n48_users[c(
+  "diff_interventionPredictRG",
+  "diff_interventionTestOutcomeRG",
+  "diff_assessmentBeliefRG_num",
+  "diff_assessmentBeliefEffortRG_num",
+  "assessmentStrategyChoiceGenerateCount",
+  "interventionTestScore",
+  "assessmentTestScore",
+  "changeTestScore"
+  )], filename="diffOutcomes_corrTable.doc")
+
+apa.cor.table(df_v5n48_users[c(
+  #"diff_interventionPredictRG",
+  #"diff_interventionTestOutcomeRG",
+  "assessmentStrategyChoiceGenerateCount",
+  #"changeRelativeToOutcomeBehavior_num",
+  "diff_assessmentBeliefRG_num",
+  #"changeRelativeToOutcome_num",
+  #"interventionTestScore",
+  #"assessmentTestScore",
+  "changeTestScore"
+  )])
+
+```
+
+# why no learning effect?
+```{r}
+
+# generation effect size is small?
+mean(df_v5n48_users$interventionTestRestudyScore, na.rm=T) # 2.826087
+mean(df_v5n48_users$interventionTestGenerateScore, na.rm=T) # 3.956522
+
+t.test(df_v5n48_users$interventionTestRestudyScore, df_v5n48_users$interventionTestGenerateScore, paired=T) # generate score is higher
+
+```

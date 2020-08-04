@@ -1102,4 +1102,44 @@ means %>% ggplot(aes(directionOfChange, diff_interventionTestOutcomeRG, color=co
 
 ```
 
+# investigating relationships among outcomes of interest
+```{r correlation table}
+
+apa.cor.table(df_v5n48_users[c("diff_interventionPredictRG", 
+           "diff_interventionTestOutcomeRG",
+           "assessmentStrategyChoiceGenerateCount",
+           "diff_assessmentBeliefRG_num",
+           "assessmentTestScore")])
+
+# all intuitive relationships!
+# predictions are not correlated with outcomes
+# the more outcome indicates R, the less they choose G (not perfect corr, but related)
+# the more they choose G, the less they believe R (not perfect corr, but related)
+# the more they choose G, the better their learning outcomes...(though is this driven by G, or by person?)
+
+# surprising that outcomes are not significantly related to beliefs
+
+```
+
+# investigating relationships among outcomes of interest
+```{r correlation table by conditions}
+
+apa.cor.table(filter(df_v5n48_users, condition=="control")[c("diff_interventionPredictRG", 
+           "diff_interventionTestOutcomeRG",
+           "assessmentStrategyChoiceGenerateCount",
+           "diff_assessmentBeliefRG_num",
+           "assessmentTestScore")])
+
+apa.cor.table(filter(df_v5n48_users, condition=="expt")[c("diff_interventionPredictRG", 
+           "diff_interventionTestOutcomeRG",
+           "assessmentStrategyChoiceGenerateCount",
+           "diff_assessmentBeliefRG_num",
+           "assessmentTestScore")])
+
+# oh, this is confusing
+# the outcome-choice relationship is driven by control, which doesn't make sense...unless it just means that relationship already existed
+# the choice-finalBelief relationship is driven by expt (though it's close in control too...? I'd expect to see it in both groups)
+
+
+```
 

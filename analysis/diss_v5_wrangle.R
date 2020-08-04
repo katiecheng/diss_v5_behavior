@@ -27,6 +27,10 @@ df_v5n48$assessmentStrategy_num <- factor(ifelse(
   df_v5n48$assessmentStrategy=="restudy", 0,
   ifelse(df_v5n48$assessmentStrategy=="generate", 1, NA)))
 
+# calculate effort diff
+df_v5n48_users$diff_assessmentBeliefEffortRG_num <- df_v5n48_users$effortRestudy_num - df_v5n48_users$effortGenerate_num
+
+
 # which exceeded expectations more?
 df_v5n48_users$diff_interventionStrategyScoreExceedPrediction <- df_v5n48_users$diff_interventionRestudyScoreToPrediction - 
   df_v5n48_users$diff_interventionGenerateScoreToPrediction
@@ -73,8 +77,16 @@ df_v5n48_users$finalBehaviorMatchOutcome_num <- ifelse(df_v5n48_users$finalBehav
 # behavior diffRG
 df_v5n48_users$diff_assessmentBehaviorRG <- df_v5n48_users$assessmentStrategyChoiceRestudyCount - df_v5n48_users$assessmentStrategyChoiceGenerateCount
 
+# success rate
+df_v5n48_users$assessmentStrategyRestudySuccessRate <- df_v5n48_users$assessmentStrategyRestudyScore / df_v5n48_users$assessmentStrategyChoiceRestudyCount
+df_v5n48_users$assessmentStrategyGenerateSuccessRate <- df_v5n48_users$assessmentStrategyGenerateScore / df_v5n48_users$assessmentStrategyChoiceGenerateCount
+
+
 # effort diffRG
 df_v5n48_users$diff_effortRG  <- df_v5n48_users$effortRestudy_num - df_v5n48_users$effortGenerate_num
+
+# diff test 2 to test 1
+df_v5n48_users$changeTestScore <- df_v5n48_users$assessmentTestScore - df_v5n48_users$interventionTestScore
 
 # drop unused factor levels
 df_v5n48 <- droplevels(df_v5n48)
@@ -83,3 +95,28 @@ df_v5n48_users <- droplevels(df_v5n48_users)
 # subset dfs
 df_v5n48_users_control <- filter(df_v5n48_users, condition=="control"); nrow(df_v5n48_users_control)
 df_v5n48_users_expt <- filter(df_v5n48_users, condition=="expt"); nrow(df_v5n48_users_expt)
+df_v5n48_users_predRoutG <- filter(df_v5n48_users, interventionPrediction=="restudy" & interventionOutcome=="generate"); nrow(df_v5n48_users_predRoutG)
+
+# create dataset for CPA in SPSS
+df_v5n48_users_subCPA <- df_v5n48_users[c(
+  "condition",                                     # experimental condition (categ: control, expt1, expt2)
+  "age",
+  "diff_interventionPredictRG",                    # predicted difference restudy-generate (cont: -10 to 10)
+  "interventionPrediction",                        # prediction for best strategy (categ: restudy, equal, generate)\
+  "diff_interventionTestOutcomeRG",                # actual difference restudy-generate (cont: -10 to 10)
+  "interventionOutcome",                           # actual best strategy (categ: restudy, equal, generate)
+  "interventionTestScore",                         # total score on intervention test
+  "assessmentStrategyChoiceGenerateCount",         # DV: number of generate choices (cont: 0-20)
+  "assessmentTestScore",                           # DV: final test score (cont: 0-20)
+  "diff_assessmentBeliefRG_num",                   # DV: final belief for difference restudy-generate (cont: -1.69 to 1.69)
+  "assessmentBelief"                               # DV: final belief for best strategy (categ: restudy, equal, generate)
+)]
+levels(df_v5n48_users_subCPA$condition) <- c(0,1)
+levels(df_v5n48_users_subCPA$interventionPrediction) <- c(0,1,2)
+levels(df_v5n48_users_subCPA$interventionOutcome) <- c(0,1,2)
+levels(df_v5n48_users_subCPA$assessmentBelief) <- c(0,1,2)
+df_v5n48_users_subCPA$diff_interventionPredictRG <- -1 * df_v5n48_users_subCPA$diff_interventionPredictRG
+df_v5n48_users_subCPA$diff_interventionTestOutcomeRG <- -1 * df_v5n48_users_subCPA$diff_interventionTestOutcomeRG
+df_v5n48_users_subCPA$diff_assessmentBeliefRG_num <- -1 * df_v5n48_users_subCPA$diff_assessmentBeliefRG_num
+names(df_v5n48_users_subCPA) <- c("group01", "age", "predictN", "predictC", "outcomeN", "outcomeC", "quiz1", "numGen", "quiz2", "beliefN", "beliefC")
+write.csv(df_v5n48_users_subCPA,fs::path(dir_data, "Katie_v5n48_CPA.csv"), row.names = FALSE)

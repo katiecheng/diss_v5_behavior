@@ -372,9 +372,52 @@ df_users['diff_interventionGenerateScoreToPrediction'] = df_users['interventionT
 ### item outcome names
 itemConsistencyNames = []
 itemAlignmentNames = []
+itemStrategyNames = []
 for n in range(1, 21):
   itemConsistencyNames.append("changeRelativeToOutcomeBehavior_%d_num" %n)
   itemAlignmentNames.append("behaviorAlignedWithOutcome_%d_num" %n)
+  itemStrategyNames.append("itemStrategy_%d" %n)
+
+
+"""
+Calculate the number of strategy successes; nan if no attempts
+"""
+
+def calcRestudySuccesses(df):
+  if df['assessmentStrategyChoiceRestudyCount']==0:
+    return float("nan")
+  else:
+    return df['assessmentStrategyRestudyScore']
+
+def calcGenerateSuccesses(df):
+  if df['assessmentStrategyChoiceGenerateCount']==0:
+    return float("nan")
+  else:
+    return df['assessmentStrategyGenerateScore']
+
+df_users['assessmentStrategyRestudySuccessCount'] = df_users.apply(calcRestudySuccesses, axis=1)
+df_users['assessmentStrategyGenerateSuccessCount'] = df_users.apply(calcGenerateSuccesses, axis=1)
+
+
+"""
+Calculate the number of strategy failures; nan if no attempts
+"""
+
+def calcRestudyFailures(df):
+  if df['assessmentStrategyChoiceRestudyCount']==0:
+    return float("nan")
+  else:
+    return df['assessmentStrategyChoiceRestudyCount'] - df['assessmentStrategyRestudyScore']
+
+def calcGenerateFailures(df):
+  if df['assessmentStrategyChoiceGenerateCount']==0:
+    return float("nan")
+  else:
+    return df['assessmentStrategyChoiceGenerateCount'] - df['assessmentStrategyGenerateScore']
+
+df_users['assessmentStrategyRestudyFailureCount'] = df_users.apply(calcRestudyFailures, axis=1)
+df_users['assessmentStrategyGenerateFailureCount'] = df_users.apply(calcGenerateFailures, axis=1)
+
 
 ### sort on column names
 df_users = df_users[[
@@ -413,6 +456,10 @@ df_users = df_users[[
   "assessmentStrategyChoiceGenerateCount",
   "assessmentStrategyRestudyScore",
   "assessmentStrategyGenerateScore",
+  "assessmentStrategyRestudySuccessCount",
+  "assessmentStrategyGenerateSuccessCount",
+  "assessmentStrategyRestudyFailureCount",
+  "assessmentStrategyGenerateFailureCount",
   "assessmentTestScore",
   "assessmentTestRestudyScore",
   "assessmentTestGenerateScore",
@@ -452,7 +499,7 @@ df_users = df_users[[
   "effort",
   "effort_num",
   "comments"
-] + itemConsistencyNames + itemAlignmentNames]
+] + itemConsistencyNames + itemAlignmentNames + itemStrategyNames]
 
 df_items = df_items[[
   "itemSwahili",

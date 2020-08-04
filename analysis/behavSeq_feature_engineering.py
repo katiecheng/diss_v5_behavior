@@ -104,14 +104,6 @@ df_users['assessmentStratAcc'] = df_users[['assessmentStrategySequence','assessm
 # df_users['assessmentStratAcc']
 
 
-df_users['assessmentStratA'] = df_users[['assessmentStrategySequence','assessmentAccuracySequence']].apply(
-    lambda x: np.array(zip(
-            list(str(x['assessmentStrategySequence'])), 
-            list(str(x['assessmentAccuracySequence']))
-            )) if pd.notnull(x['assessmentStrategySequence']) else x['assessmentStrategySequence'],
-    axis=1 # apply to each row
-)
-
 
 """
 write a function that can calculate the probability of stay vs. switch for each cell
